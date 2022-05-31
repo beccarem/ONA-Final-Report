@@ -1,0 +1,24 @@
+---
+title: "Final Report"
+output: 
+  pdf_document: default
+  github_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+
+# Methodology
+
+
+# Analysis and Results
+
+
+# Conclusions and Recommendations
+
+
+
