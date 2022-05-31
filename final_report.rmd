@@ -1,24 +1,541 @@
 ---
 title: "Final Report"
+author: "Chelsea, Rebecca, Diwei, Dany"
 output: 
-  pdf_document: default
+  #pdf_document: default
   github_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(arrow)
 ```
 
-# Introduction
+# 1. Introduction
 
 
-# Methodology
+# 2. Methodology
+Load the applications data from 'app_data_sample.parquet' and edges data from 'edges_sample.csv'
+
+```{r load-data}
+applications <- read_parquet("app_data_sample.parquet")
+edges <- read_csv("edges_sample.csv")
+```
+
+### Get gender for examiners
+
+We'll get gender based on the first name of the examiner, which is recorded in the field `examiner_name_first`. We'll use library `gender` for that, relying on a modified version of their own [example](https://cran.r-project.org/web/packages/gender/vignettes/predicting-gender.html).
+
+Note that there are over 2 million records in the applications table -- that's because there are many records for each examiner, as many as the number of applications that examiner worked on during this time frame. Our first step therefore is to get all *unique* names in a separate list `examiner_names`. We will then guess gender for each one and will join this table back to the original dataset. So, let's get names without repetition:
+
+```{r gender-1}
+library(gender)
+#install_genderdata_package() # only run this line the first time you use the package, to get data for it
+# get a list of first names without repetitions
+examiner_names <- applications %>% 
+  distinct(examiner_name_first)
+#examiner_names
+```
+
+Now let's use function `gender()` as shown in the example for the package to attach a gender and probability to each name and put the results into the table `examiner_names_gender`
+
+```{r gender-2}
+# get a table of names and gender
+examiner_names_gender <- examiner_names %>% 
+  do(results = gender(.$examiner_name_first, method = "ssa")) %>% 
+  unnest(cols = c(results), keep_empty = TRUE) %>% 
+  select(
+    examiner_name_first = name,
+    gender,
+    proportion_female
+  )
+examiner_names_gender
+```
+
+Finally, let's join that table back to our original applications data and discard the temporary tables we have just created to reduce clutter in our environment.
+
+```{r gender-3}
+# remove extra colums from the gender table
+examiner_names_gender <- examiner_names_gender %>% 
+  select(examiner_name_first, gender)
+# joining gender back to the dataset
+applications <- applications %>% 
+  left_join(examiner_names_gender, by = "examiner_name_first")
+# cleaning up
+rm(examiner_names)
+rm(examiner_names_gender)
+#gc()
+```
+
+### Guess the examiner's race
+
+We'll now use package `wru` to estimate likely race of an examiner. Just like with gender, we'll get a list of unique names first, only now we are using surnames.
+
+```{r race-1}
+library(wru)
+examiner_surnames <- applications %>% 
+  select(surname = examiner_name_last) %>% 
+  distinct()
+#examiner_surnames
+```
+
+We'll follow the instructions for the package outlined here [https://github.com/kosukeimai/wru](https://github.com/kosukeimai/wru).
+
+```{r race-2}
+examiner_race <- predict_race(voter.file = examiner_surnames, surname.only = T) %>% 
+  as_tibble()
+#examiner_race
+```
+
+As you can see, we get probabilities across five broad US Census categories: white, black, Hispanic, Asian and other. (Some of you may correctly point out that Hispanic is not a race category in the US Census, but these are the limitations of this package.)
+
+Our final step here is to pick the race category that has the highest probability for each last name and then join the table back to the main applications table. See this example for comparing values across columns: [https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-rowwise/](https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-rowwise/). And this one for `case_when()` function: [https://dplyr.tidyverse.org/reference/case_when.html](https://dplyr.tidyverse.org/reference/case_when.html).
+
+```{r race-3}
+examiner_race <- examiner_race %>% 
+  mutate(max_race_p = pmax(pred.asi, pred.bla, pred.his, pred.oth, pred.whi)) %>% 
+  mutate(race = case_when(
+    max_race_p == pred.asi ~ "Asian",
+    max_race_p == pred.bla ~ "black",
+    max_race_p == pred.his ~ "Hispanic",
+    max_race_p == pred.oth ~ "other",
+    max_race_p == pred.whi ~ "white",
+    TRUE ~ NA_character_
+  ))
+examiner_race
+```
+
+Let's join the data back to the applications table.
+
+```{r race-4}
+# removing extra columns
+examiner_race <- examiner_race %>% 
+  select(surname,race)
+applications <- applications %>% 
+  left_join(examiner_race, by = c("examiner_name_last" = "surname"))
+rm(examiner_race)
+rm(examiner_surnames)
+#gc()
+```
+
+### Examiner's tenure 
+
+To figure out the timespan for which we observe each examiner in the applications data, let's find the first and the last observed date for each examiner. We'll first get examiner IDs and application dates in a separate table, for ease of manipulation. We'll keep examiner ID (the field `examiner_id`), and earliest and latest dates for each application (`filing_date` and `appl_status_date` respectively). We'll use functions in package `lubridate` to work with date and time values.
+
+```{r tenure-1}
+library(lubridate) # to work with dates
+examiner_dates <- applications %>% 
+  select(examiner_id, filing_date, appl_status_date) 
+#examiner_dates
+```
+
+The dates look inconsistent in terms of formatting. Let's make them consistent. We'll create new variables `start_date` and `end_date`.
+
+```{r tenure-2}
+examiner_dates <- examiner_dates %>% 
+  mutate(start_date = ymd(filing_date), end_date = as_date(dmy_hms(appl_status_date)))
+```
+
+Let's now identify the earliest and the latest date for each examiner and calculate the difference in days, which is their tenure in the organization.
+
+```{r tenure-3}
+examiner_dates <- examiner_dates %>% 
+  group_by(examiner_id) %>% 
+  summarise(
+    earliest_date = min(start_date, na.rm = TRUE), 
+    latest_date = max(end_date, na.rm = TRUE),
+    tenure_days = interval(earliest_date, latest_date) %/% days(1)
+    ) %>% 
+  filter(year(latest_date)<2018)
+#examiner_dates
+
+## plot tenure
+library(skimr)
+examiner_dates %>% 
+  select(earliest_date,latest_date,tenure_days) %>% 
+  skim()
+```
+
+Joining back to the applications data.
+
+```{r tenure-4}
+applications <- applications %>% 
+  left_join(examiner_dates, by = "examiner_id")
+#rm(examiner_dates)
+#gc()
+```
+
+### Create application processing time variable
+
+```{r}
+attach(applications)
+library(lubridate)
+
+# compute the final decision date as either abandon date or patent issue date
+application_dates <- applications %>% 
+    mutate(decision_date = coalesce(abandon_date,patent_issue_date)) %>%
+    select(application_number,filing_date, abandon_date, patent_issue_date, decision_date, examiner_id, examiner_art_unit, gender, race, tenure_days) %>%
+    filter(!is.na(decision_date))
+
+head(application_dates)
+```
+
+```{r}
+# compute the application processing time as the difference of filing date and decision date
+application_dates <- application_dates %>% 
+    #mutate(app_proc_time = decision_date - filing_date)
+    mutate(app_proc_time = difftime(decision_date, filing_date, units = "days"))
+
+head(application_dates) #1,688,716 applications
+```
+
+It seems some application processing time have negative value abnormally. Let's take a look at the distribution.
+
+```{r}
+# plot the data distribution of application processing time
+application_dates %>%
+  ggplot(aes(sample = app_proc_time)) +
+  geom_qq()
+```
+
+```{r}
+# filter out negative and outlying application processing time
+application_dates <- application_dates %>% 
+    filter(app_proc_time>ddays(0)) %>% 
+    filter(app_proc_time<ddays(10000))
+
+head(application_dates) #1,688,672 applications
+```
+```{r}
+# plot again the data distribution of application processing time after cleaning
+application_dates %>%
+  ggplot(aes(sample = app_proc_time)) +
+  geom_qq()
+```
+Outliers are removed successfully. 
+
+### Get work group from art unit
+```{r}
+# before we begin, get the workgroup from art unit as rounding down to digit tenth.
+application_dates <- application_dates %>%
+  mutate(wg = (application_dates$examiner_art_unit%/%10) * 10)
+
+# Find out which is the dominating workgroup an examiner handled the applications for.
+library(plyr)
+library(dplyr)
+library(lubridate)
+application_dates <- mutate(
+  application_dates,
+  period = case_when(
+    filing_date<ymd("2007-01-01") ~ NA_character_,
+    filing_date<ymd("2008-01-01") ~ "t0",
+    filing_date<ymd("2009-01-01") ~ "t1",
+    filing_date<ymd("2010-01-01") ~ "t2",
+    filing_date<ymd("2011-01-01") ~ "t3",
+    filing_date<ymd("2012-01-01") ~ "t4",
+    filing_date<ymd("2013-01-01") ~ "t5",
+    filing_date<ymd("2014-01-01") ~ "t6",
+    filing_date<ymd("2015-01-01") ~ "t7",
+    filing_date<ymd("2016-01-01") ~ "t8",
+    TRUE~ NA_character_)
+  )
+
+# get number of applications
+library(plyr)
+examiner_wg_napp <- ddply(application_dates, .(examiner_id, period, wg), nrow)
+names(examiner_wg_napp) <- c("examiner_id","period", "wg", "n_applications")
+
+# assume an examiner belong to the wg he/she most frequently handled applications for, if tie take the greater wg
+examiner_wg_napp <- examiner_wg_napp[order(examiner_wg_napp$examiner_id, examiner_wg_napp$period, -(examiner_wg_napp$n_applications), -(examiner_wg_napp$wg)), ] ### sort first
+examiner_wg <- examiner_wg_napp [!duplicated(examiner_wg_napp[c(1,2)]),]
+examiner_wg <- select(examiner_wg, c("examiner_id","wg","period"))
+examiner_wg <- drop_na(examiner_wg)
+
+rm(examiner_wg_napp)
+```
+
+### Get seniority at each period
+Let's assume a time period of $t_0 = 2007$ (the year we first get senior examiners, according to our definition), $t_1 = 2008$, $t_2 = 2009$, $t_3 = 2010$, $t_4 = 2011$, $t_5 = 2012$, $t_6 = 2013$, $t_7 = 2014$, $t_8 = 2015$
+
+```{r}
+# Get tenure & state at each period
+examiner_dates <- examiner_dates %>% 
+  mutate(
+    tenure_t0 = ifelse(as.duration(earliest_date %--% ymd("2007-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2007-01-01"))/dyears(1)),
+    tenure_t1 = ifelse(as.duration(earliest_date %--% ymd("2008-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2008-01-01"))/dyears(1)),
+    tenure_t2 = ifelse(as.duration(earliest_date %--% ymd("2009-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2009-01-01"))/dyears(1)),
+    tenure_t3 = ifelse(as.duration(earliest_date %--% ymd("2010-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2010-01-01"))/dyears(1)),
+    tenure_t4 = ifelse(as.duration(earliest_date %--% ymd("2011-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2011-01-01"))/dyears(1)),
+    tenure_t5 = ifelse(as.duration(earliest_date %--% ymd("2012-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2012-01-01"))/dyears(1)),
+    tenure_t6 = ifelse(as.duration(earliest_date %--% ymd("2013-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2013-01-01"))/dyears(1)),
+    tenure_t7 = ifelse(as.duration(earliest_date %--% ymd("2014-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2014-01-01"))/dyears(1)),
+    tenure_t8 = ifelse(as.duration(earliest_date %--% ymd("2015-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2015-01-01"))/dyears(1)),
+
+    t0_state = case_when(
+      tenure_t0<6 & tenure_t0>0 ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t0>=6              ~ "Senior"  , # Sr
+      TRUE                      ~ NA_character_ # not yet hired
+    ),
+    t1_state = case_when(
+      latest_date<ymd("2008-12-31")        ~ "Exit",
+      earliest_date>ymd("2007-01-01") 
+        & earliest_date<ymd("2008-01-01") ~ "New hire",
+      tenure_t1<6 & tenure_t1>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t1>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired
+      ),
+    t2_state = case_when(
+      t1_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2009-12-31")        ~ "Exit",
+      earliest_date>ymd("2008-01-01") 
+        & earliest_date<ymd("2009-01-01") ~ "New hire",
+      tenure_t2<6 & tenure_t2>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t2>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t3_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2010-12-31")        ~ "Exit",
+      earliest_date>ymd("2009-01-01") 
+        & earliest_date<ymd("2010-01-01") ~ "New hire",
+      tenure_t3<6 & tenure_t3>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t3>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t4_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2011-12-31")        ~ "Exit",
+      earliest_date>ymd("2010-01-01") 
+        & earliest_date<ymd("2011-01-01") ~ "New hire",
+      tenure_t4<6 & tenure_t4>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t4>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t5_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2012-12-31")        ~ "Exit",
+      earliest_date>ymd("2011-01-01") 
+        & earliest_date<ymd("2012-01-01") ~ "New hire",
+      tenure_t5<6 & tenure_t5>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t5>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t6_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2013-12-31")        ~ "Exit",
+      earliest_date>ymd("2012-01-01") 
+        & earliest_date<ymd("2013-01-01") ~ "New hire",
+      tenure_t6<6 & tenure_t6>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t6>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t7_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"|t6_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2014-12-31")        ~ "Exit",
+      earliest_date>ymd("2013-01-01") 
+        & earliest_date<ymd("2014-01-01") ~ "New hire",
+      tenure_t7<6 & tenure_t7>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t7>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      ),
+    t8_state = case_when(
+      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"|t6_state=="Exit"|t7_state=="Exit"                   ~ NA_character_,
+      latest_date<ymd("2015-12-31")        ~ "Exit",
+      earliest_date>ymd("2014-01-01") 
+        & earliest_date<ymd("2015-01-01") ~ "New hire",
+      tenure_t8<6 & tenure_t8>0          ~ "Junior"  , # Jr; not those yet to be hired!
+      tenure_t8>=6                       ~ "Senior"  , # Sr
+      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
+      )
+    )
+
+examiner_dates <- examiner_dates %>% 
+  select(examiner_id, t0_state, t1_state, t2_state, t3_state, t4_state, t5_state, t6_state, t7_state, t8_state)
+
+## plot seniority
+library(ggplot2)
+library(scales)  
+library(gridExtra)
+
+plot1 <- ggplot(examiner_dates, aes(factor(t1_state, levels = c("New hire", "Junior", "Senior", "Exit", NA)))) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") +
+          ggtitle("Seniority distribution for USPTO at t1")
+plot1
+```
+
+Joining back to the applications dates data.
+
+```{r}
+application_dates <- application_dates %>% 
+  left_join(examiner_dates, by = "examiner_id")
+rm(examiner_dates)
+rm(plot1)
+#gc()
+```
+
+### Generate examiner panel dataset
+```{r}
+# compute average application processing time
+
+cols <- c("examiner_id","period", "wg", "examiner_art_unit","gender", "race", "tenure_days",
+          "t0_state","t1_state","t2_state","t3_state","t4_state","t5_state","t6_state","t7_state","t8_state")
+
+examiners <- application_dates %>%
+    group_by(across(all_of(cols))) %>%
+    dplyr::summarize(mean_app_proc_time = mean(app_proc_time, na.rm=TRUE), n_app = n()) %>%
+    drop_na()
+
+head(data.frame(examiners))
+```
+
+#### Create panel dataset of examiners for analysis
+```{r}
+# subset examiners for time period t1 for our analysis, as advice dates are all in 2008 
+examiner_aus <- data.frame(examiners) %>%
+    filter(period == "t1") %>% 
+    #filter(wg == 2450 | wg == 2480) %>%
+    select(wg, examiner_art_unit, examiner_id, gender, race, t1_state, tenure_days, mean_app_proc_time, n_app) %>%
+    distinct(examiner_id, .keep_all=TRUE) %>% 
+    drop_na() 
+
+head(examiner_aus) #2591
+```
+### Compute centrality of examiners
+```{r}
+# separate from edges examiners seek and give advice
+edges_aus <- edges %>%
+  filter(ego_examiner_id %in% examiner_aus$examiner_id) %>%
+  filter(alter_examiner_id %in% examiner_aus$examiner_id) %>%
+  drop_na() #8824
+
+# merge work group information
+network <- left_join(edges_aus, examiner_aus, by = c("ego_examiner_id" = "examiner_id"))
+colnames(network)[5] <- "ego_examiner_wg"
+colnames(network)[6] <- "ego_examiner_au"
+colnames(network)[7] <- "ego_examiner_gender"
+colnames(network)[8] <- "ego_examiner_race"
+colnames(network)[9] <- "ego_examiner_t1_state"
+colnames(network)[10] <- "ego_examiner_tenure"
+colnames(network)[11] <- "ego_examiner_appprooctime"
+colnames(network)[12] <- "ego_examiner_napp"
+#network <- subset(network, select = -c(period))
+network <- left_join(network, examiner_aus, by = c("alter_examiner_id" = "examiner_id"))
+colnames(network)[13] <- "alter_examiner_wg"
+colnames(network)[14] <- "alter_examiner_au"
+colnames(network)[15] <- "alter_examiner_gender"
+colnames(network)[16] <- "alter_examiner_race"
+colnames(network)[17] <- "alter_examiner_t1_state"
+#colnames(network)[18] <- "alter_examiner_tenure"
+colnames(network)[19] <- "alter_examiner_appprooctime"
+colnames(network)[20] <- "alter_examiner_napp"
+#network <- subset(network, select = -c(period))
+
+head(network)
+```
+```{r}
+# Visualize the advice seeking volume by examiner seniority in period t1
+  network %>% 
+  group_by(ego_examiner_t1_state, alter_examiner_t1_state) %>% 
+  dplyr::summarise(count = n())
+```
+There are more junior seeking advice from senior than peer advice seeking (junior to junior, senior to senior). It is the fewest for senior to seek advice from junior. 
 
 
-# Analysis and Results
+```{r}
+# create edge list
+edge_list <- select(network, c("ego_examiner_id","alter_examiner_id")) #8824
+
+# create node list
+ego <- select(network, c("ego_examiner_id","ego_examiner_wg")) %>%
+    dplyr::rename(id=ego_examiner_id, wg=ego_examiner_wg)
+alter <- select(network, c("alter_examiner_id","alter_examiner_wg")) %>%
+    dplyr::rename(id=alter_examiner_id, wg=alter_examiner_wg)
+nodes <- rbind(ego, alter) %>%
+  select(id) %>%
+  distinct() %>%
+  drop_na() #1447
+
+# create advice net
+library(igraph)
+advice_net = graph_from_data_frame(d=edge_list, vertices=nodes, directed=TRUE)
+```
+
+```{r}
+# calculate Degree Centrality, a measure for a node in a network is just its degree, the number of edges connected to it. 
+V(advice_net)$dc <- degree(advice_net)
+# calculate Betweenness Centrality, which measures the extent to which a node lies on paths between other nodes.
+V(advice_net)$bc <- betweenness(advice_net)
+# calculate Eigenvector Centrality, which awards a number of points proportional to the centrality scores of the neighbors
+V(advice_net)$ec <- evcent(advice_net)$vector
+V(advice_net)$cc <- closeness(advice_net) # dropped since closeness centrality is not well-defined for disconnected graphs
+```
+
+```{r}
+# combine the centrality scores
+centrality <- data.frame(cbind(nodes$id, V(advice_net)$dc, V(advice_net)$bc, V(advice_net)$ec, V(advice_net)$cc)) 
+colnames(centrality)[1] <- "examiner_id"
+colnames(centrality)[2] <- "degree_centrality"
+colnames(centrality)[3] <- "betweenness_centrality"
+colnames(centrality)[4] <- "eigenvector_centrality"
+colnames(centrality)[5] <- "closeness_centrality"
+head(centrality)
+```
+
+```{r}
+# merge centrality to examiners
+examiner_joined <- left_join(examiner_aus, centrality, by = c("examiner_id" = "examiner_id"))
+examiner_joined <- examiner_joined %>%
+  drop_na(degree_centrality)
+head(examiner_joined) #1447
+```
+```{r}
+# housekeeping
+rm(examiner_wg)
+rm(alter)
+rm(ego)
+rm(examiner_aus)
+rm(edges_aus)
+rm(edge_list)
+rm(edges)
+rm(nodes)
+rm(centrality)
+```
+
+### Work groups selection (applicable for analysis zoom-in)
+```{r}
+# select the workgroups under the same technology centre with most examiners at t1 for our analysis, as advice dates are all in 2008
+examiner_joined %>% 
+  #dplyr::filter(period == "t1") %>% 
+  count("wg") %>% 
+  arrange(desc(freq)) %>%
+  head(4)
+```
 
 
-# Conclusions and Recommendations
+Hence, we're selecting work groups 1780 and 1770 under the same technology centre 1700 for further analysis. 
+```{r}
+examiner_joined_1780 = examiner_joined[examiner_joined$wg==1780,]
+examiner_joined_1770 = examiner_joined[examiner_joined$wg==1770,]
+
+examiner_joined_2wg <- examiner_joined %>%
+  filter(wg == 1780 | wg == 1770)
+```
+
+# 3. Analysis and Results
+### 3.1 Organization and social factors associated with the length of patent application prosecution
+
+#### 3.1.1 Impacts of examiners' gender
+
+#### 3.1.2 Impacts of examiners' seniority
+
+### 3.2 The role of race and ethnicity in the processes described
+#### 3.2.1 Impacts of examiners' race 
+
+# 4. Conclusions and Recommendations
 
 
 
