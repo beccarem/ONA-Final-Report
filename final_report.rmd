@@ -102,9 +102,9 @@ Our final step here is to pick the race category that has the highest probabilit
 examiner_race <- examiner_race %>% 
   mutate(max_race_p = pmax(pred.asi, pred.bla, pred.his, pred.oth, pred.whi)) %>% 
   mutate(race = case_when(
-    max_race_p == pred.asi ~ "Asian",
+    max_race_p == pred.asi ~ "asian",
     max_race_p == pred.bla ~ "black",
-    max_race_p == pred.his ~ "Hispanic",
+    max_race_p == pred.his ~ "hispanic",
     max_race_p == pred.oth ~ "other",
     max_race_p == pred.whi ~ "white",
     TRUE ~ NA_character_
@@ -536,6 +536,10 @@ examiner_joined_2wg <- examiner_joined %>%
 #### 3.1.1 Impacts of examiners' gender
 
 #### 3.1.2 Impacts of examiners' seniority
+
+#### 3.1.3 Impacts of examiners' race and ethnicity
+
+
 
 ## 4. Conclusions and Recommendations
 
