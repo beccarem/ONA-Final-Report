@@ -2,10 +2,7 @@
 title: "Final Report"
 author: "Chelsea, Rebecca, Diwei, Dany"
 output: 
-<<<<<<< HEAD
   #pdf_document: default
-=======
->>>>>>> 798c61f741bf4d3a7180048952f06810923e4d84
   github_document: default
   pdf_document: default
 ---
