@@ -1,9 +1,33 @@
 Final Report
 ================
-<<<<<<< HEAD
 Chelsea, Rebecca, Diwei, Dany
 
 # 1. Introduction
+
+The U.S. Patent and Trademark Office (USPTO) is the agency within the
+U.S. Chamber of Commerce that issues patents and trademarks. It is one
+in few organizations around the world to guarantee the intellectual
+property rights or inventors. Although the organization plays an
+important role in the capitalist society, it is now faced with many
+challenges and criticisms that it needs to address.
+
+One of the challenges is the time it takes examiners to process an
+application. As the agency is fully funded by patent applications fees,
+the focus should be to ensure a satisfactory “customer experience.”
+However, when examiners take a long time to process applications, this
+can be a frustrating experience for applicants. USPTO is now taking
+action to improve its entire process by identifying the causes of
+application backlogs.
+
+Our goal is to understand what causes delays in processing times, which
+characteristics makes examiners more efficient in their work and how can
+network analysis solve the organizational difficulties that USPTO is
+facing. We will focus on determining the organizational and social
+factors associated with the length of patent application prosecution. We
+will look at how examiner’s demographics (gender, race, tenure) are
+related to their application processing time. We will also look at the
+social advice network within the organization plays a role in improving
+the patent application times and outcomes.
 
 # 2. Methodology
 
@@ -804,7 +828,7 @@ head(centrality)
     ##   examiner_id degree_centrality betweenness_centrality eigenvector_centrality
     ## 1       84356                17             22.0000000           3.117146e-10
     ## 2       92953                 1              0.0000000           0.000000e+00
-    ## 3       72253                28             94.0000000           7.153516e-11
+    ## 3       72253                28             94.0000000           7.153514e-11
     ## 4       67078                 2              0.0000000           1.177571e-08
     ## 5       91688                12              0.7936508           5.901232e-10
     ## 6       61797                25              0.0000000           4.146497e-07
@@ -843,8 +867,8 @@ head(examiner_joined) #1447
     ## 2           1.221788e-06         4.785903e-07
     ## 3           6.445086e-05         4.779288e-07
     ## 4           2.212934e-10         4.782593e-07
-    ## 5           5.042804e-13         4.779288e-07
-    ## 6           4.941852e-12         4.779288e-07
+    ## 5           5.042810e-13         4.779288e-07
+    ## 6           4.941848e-12         4.779288e-07
 
 ``` r
 # housekeeping
@@ -895,43 +919,4 @@ examiner_joined_2wg <- examiner_joined %>%
 
 #### 3.1.2 Impacts of examiners’ seniority
 
-### 3.2 The role of race and ethnicity in the processes described
-
-#### 3.2.1 Impacts of examiners’ race
-
-# 4. Conclusions and Recommendations
-=======
-
-## Introduction
-
-The U.S. Patent and Trademark Office (USPTO) is the agency within the
-U.S. Chamber of Commerce that issues patents and trademarks. It is one
-in few organizations around the world to guarantee the intellectual
-property rights or inventors. Although the organization plays an
-important role in the capitalist society, it is now faced with many
-challenges and criticisms that it needs to address.
-
-One of the challenges is the time it takes examiners to process an
-application. As the agency is fully funded by patent applications fees,
-the focus should be to ensure a satisfactory “customer experience.”
-However, when examiners take a long time to process applications, this
-can be a frustrating experience for applicants. USPTO is now taking
-action to improve its entire process by identifying the causes of
-application backlogs.
-
-Our goal is to understand what causes delays in processing times, which
-characteristics makes examiners more efficient in their work and how can
-network analysis solve the organizational difficulties that USPTO is
-facing. We will focus on determining the organizational and social
-factors associated with the length of patent application prosecution. We
-will look at how examiner’s demographics (gender, race, tenure) are
-related to their application processing time. We will also look at the
-social advice network within the organization plays a role in improving
-the patent application times and outcomes.
-
-## Methodology
-
-## Analysis and Results
-
-## Conclusions and Recommendations
->>>>>>> 798c61f741bf4d3a7180048952f06810923e4d84
+## 4. Conclusions and Recommendations
