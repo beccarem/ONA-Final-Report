@@ -69,8 +69,6 @@ examiner_names_gender <- examiner_names_gender %>%
 applications <- applications %>% 
   left_join(examiner_names_gender, by = "examiner_name_first")
 # cleaning up
-rm(examiner_names)
-rm(examiner_names_gender)
 #gc()
 ```
 
@@ -120,8 +118,6 @@ examiner_race <- examiner_race %>%
   select(surname,race)
 applications <- applications %>% 
   left_join(examiner_race, by = c("examiner_name_last" = "surname"))
-rm(examiner_race)
-rm(examiner_surnames)
 #gc()
 ```
 
@@ -258,7 +254,6 @@ examiner_wg <- examiner_wg_napp [!duplicated(examiner_wg_napp[c(1,2)]),]
 examiner_wg <- select(examiner_wg, c("examiner_id","wg","period"))
 examiner_wg <- drop_na(examiner_wg)
 
-rm(examiner_wg_napp)
 ```
 
 ### Get seniority at each period
@@ -377,8 +372,6 @@ Joining back to the applications dates data.
 ```{r}
 application_dates <- application_dates %>% 
   left_join(examiner_dates, by = "examiner_id")
-rm(examiner_dates)
-rm(plot1)
 #gc()
 ```
 
@@ -497,18 +490,7 @@ examiner_joined <- examiner_joined %>%
   drop_na(degree_centrality)
 head(examiner_joined) #1447
 ```
-```{r}
-# housekeeping
-rm(examiner_wg)
-rm(alter)
-rm(ego)
-rm(examiner_aus)
-rm(edges_aus)
-rm(edge_list)
-rm(edges)
-rm(nodes)
-rm(centrality)
-```
+
 
 ### Work groups selection (applicable for analysis zoom-in)
 ```{r}
@@ -536,6 +518,42 @@ examiner_joined_2wg <- examiner_joined %>%
 #### 3.1.1 Impacts of examiners' gender
 
 #### 3.1.2 Impacts of examiners' seniority
+We are interested in how examiners' seniority influences the application process time. Here, we focus on the seniority state of examiners in t1 period. 
+
+Firstly, We fit a linear regression between the mean application processing time and the centralities for all junior examiners. 
+```{r}
+examiner_joined_2wg$t1_state <- as.factor(examiner_joined_2wg$t1_state)
+
+examiner_joined_2wg_junior <- examiner_joined_2wg %>%
+  filter(t1_state == "Junior")
+
+seniority_junior_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_junior)
+
+summary(seniority_junior_reg)
+```
+Based on the summary, for junior examiners, an increase of 1 unit of degree centrality, betweenness centrality, and eigen vector centrality, means a decrease of process time by 2.11 days, 5.49 days and 5.91e+08 days respectively. Only the closeness centrality has positive relationship with the processing time, which means the higher the closeness centrality, the longer the processing time. Unfortunately, all of the coefficients are not statistically significant.
+
+
+Then, we fit the similar linear regression based on data points from senior examiners to see if seniority impose some impacts. 
+```{r}
+examiner_joined_2wg_senior <- examiner_joined_2wg %>%
+  filter(t1_state == "Senior")
+
+seniority_senior_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_senior)
+
+summary(seniority_senior_reg)
+```
+Different from the juniors, for senior examiners, an increase of 1 unit of degree centrality and eigen vector centrality means a decrease of process time by 2.86 days (larger than the amount of change for juniors) and 1.33e+08 days(smaller than the amount of change for juniors) respectively. Contrastingly, an increase of 1 unit of betweenness centrality and closeness centrality causes an increase of process time by 6.14 days and 4.15 days respectively. Similarlt, all of the coefficients are not statistically significant.
+
+
+In the next model, we include seniority as interaction term for each of the centrality predictors. 
+```{r}
+seniority_reg = lm(as.numeric(mean_app_proc_time) ~ t1_state*degree_centrality + t1_state*betweenness_centrality + t1_state*eigenvector_centrality + t1_state*closeness_centrality, data=examiner_joined_2wg)
+
+summary(seniority_reg)
+```
+According to this model, a junior examiner usually process applications 6.17 days longer than a senior examiner. Also, the same as the previous junior model, an increase in any of the centrality predictor results in shorter processing time for junior examiners, except for the closeness centrality. If the examiner is a senior, an increase in degree centrality or closeness centrality results in a shortening of 7.44 days or 1.46 days compared to juniors; and increase in betweenness centrality or eigen vector centrality incurs a elongation of 6.11 days or 4.58 days compared to juniors. 
+
 
 #### 3.1.3 Impacts of examiners' race and ethnicity
 
