@@ -22,6 +22,17 @@ One of the challenges is the time it takes examiners to process an application. 
 Our goal is to understand what causes delays in processing times, which characteristics makes examiners more efficient in their work and how can network analysis solve the organizational difficulties that USPTO is facing. We will focus on determining the organizational and social factors associated with the length of patent application prosecution. We will look at how examiner's demographics (gender, race, tenure) are related to their application processing time. We will also look at the social advice network within the organization plays a role in improving the patent application times and outcomes.
 
 # 2. Methodology
+
+1. Data Pre-processing
+a. Data engineering
+b. Data exploration
+c. Data cleaning
+2. Examining Gender Effect
+3. Examining Race Effect
+4. Examining Tenure Effect
+
+# 3. Analysis and Results
+
 Load the applications data from 'app_data_sample.parquet' and edges data from 'edges_sample.csv'
 
 ```{r load-data}
@@ -512,7 +523,6 @@ examiner_joined_2wg <- examiner_joined %>%
   filter(wg == 1780 | wg == 1770)
 ```
 
-# 3. Analysis and Results
 ### 3.1 Organization and social factors associated with the length of patent application prosecution
 
 #### 3.1.1 Impacts of examiners' gender
@@ -646,7 +656,7 @@ summary(race_reg)
 Adding one more unit in degree centrality subtracts, on average, mean application processing time by 2.8 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, mean application processing time by 1 days, if holding everything else equal. Being a black examiner adds, on average, mean application processing time by 185 days, if holding everything else equal. The interaction terms of race x centrality has shown that being a white examiner, the effect of degree centrality is positive and the effect of betweenness centrality is positive in relation to the mean application processing time.
 
  
-## 4. Conclusions and Recommendations
+# 4. Conclusions and Recommendations
 
 
 
