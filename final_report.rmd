@@ -1,8 +1,7 @@
 ---
 title: "Final Report"
 author: "Chelsea, Rebecca, Diwei, Dany"
-output: 
-  #pdf_document: default
+output:
   github_document: default
   pdf_document: default
 ---
@@ -15,6 +14,7 @@ library(arrow)
 ```
 
 # 1. Introduction
+
 The U.S. Patent and Trademark Office (USPTO) is the agency within the U.S. Chamber of Commerce that issues patents and trademarks. It is one in few organizations around the world to guarantee the intellectual property rights or inventors. Although the organization plays an important role in the capitalist society, it is now faced with many challenges and criticisms that it needs to address. 
 
 One of the challenges is the time it takes examiners to process an application. As the agency is fully funded by patent applications fees, the focus should be to ensure a satisfactory "customer experience." However, when examiners take a long time to process applications, this can be a frustrating experience for applicants. USPTO is now taking action to improve its entire process by identifying the causes of application backlogs.
@@ -655,7 +655,6 @@ summary(race_reg)
 
 Adding one more unit in degree centrality subtracts, on average, mean application processing time by 2.8 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, mean application processing time by 1 days, if holding everything else equal. Being a black examiner adds, on average, mean application processing time by 185 days, if holding everything else equal. The interaction terms of race x centrality has shown that being a white examiner, the effect of degree centrality is positive and the effect of betweenness centrality is positive in relation to the mean application processing time.
 
- 
 # 4. Conclusions and Recommendations
 
 
