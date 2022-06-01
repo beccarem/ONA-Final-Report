@@ -539,8 +539,95 @@ examiner_joined_2wg <- examiner_joined %>%
 
 #### 3.1.3 Impacts of examiners' race and ethnicity
 
+```{r}
+# asian
+examiner_joined_2wg_asian <- examiner_joined_2wg %>% filter(race == "asian")
 
+asian_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_asian)
 
+summary(asian_reg)
+```
+
+Adding one more unit in degree centrality subtracts, on average, an asian’s mean application processing time by 5.4 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, an asian’s mean application processing time by 4.7 days, if holding everything else equal.
+
+```{r}
+# black
+examiner_joined_2wg_black <- examiner_joined_2wg %>% filter(race == "black")
+
+black_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_black)
+
+summary(black_reg)
+```
+
+```{r}
+# hispanic
+examiner_joined_2wg_hispanic <- examiner_joined_2wg %>% filter(race == "hispanic")
+
+hispanic_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_hispanic)
+
+summary(hispanic_reg)
+```
+
+```{r}
+# other
+examiner_joined_2wg_other <- examiner_joined_2wg %>% filter(race == "other")
+
+other_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_other)
+
+summary(other_reg)
+```
+
+```{r}
+# white
+examiner_joined_2wg_white <- examiner_joined_2wg %>% filter(race == "white")
+
+white_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_white)
+
+summary(white_reg)
+```
+
+Adding one more unit in degree centrality subtracts, on average, a white’s mean application processing time by 2.4 days, if holding everything else equal. Adding one more unit in betweenness centrality adds, on average, a white’s mean application processing time by 0.03 days, if holding everything else equal.
+
+```{r}
+aggregate(data.frame(count = examiner_joined_2wg$race), list(value = examiner_joined_2wg$race), length)
+```
+
+This distribution explains why the regressions made for races with not enough datapoints didn't work.
+
+To better understand potential reasons and control for other characteristics of examiner that might influence the relationship, let’s take a look at the distribution of race for the 2 work groups combined.
+
+```{r}
+library(ggplot2)
+library(scales) 
+library(gridExtra)
+```
+
+```{r}
+plot1 <- ggplot(examiner_joined_2wg, aes(race)) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") +
+          ggtitle("Gender distribution for USPTO")
+
+plot2 <- ggplot(examiner_joined_2wg, aes(race, mean_app_proc_time)) + 
+          geom_bar(posititon="dodge", stat="summary", fun="mean") + 
+          ylab("Mean App Proc Time (Days)") +
+          ggtitle("App Proc Time for USPTO")
+
+grid.arrange(plot1,plot2,ncol=2, widths=c(1,1))
+```
+
+Let's consider race at the both workgroups level now.
+
+```{r}
+race_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality + as.factor(race) + as.factor(race)*degree_centrality + as.factor(race)*betweenness_centrality, data=examiner_joined_2wg)
+
+summary(race_reg)
+```
+
+Adding one more unit in degree centrality subtracts, on average, mean application processing time by 2.8 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, mean application processing time by 1 days, if holding everything else equal. Being a black examiner adds, on average, mean application processing time by 185 days, if holding everything else equal. The interaction terms of race x centrality has shown that being a white examiner, the effect of degree centrality is positive and the effect of betweenness centrality is positive in relation to the mean application processing time.
+
+ 
 ## 4. Conclusions and Recommendations
 
 
