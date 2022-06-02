@@ -35,9 +35,9 @@ the patent application times and outcomes.
 
 <!-- -->
 
-1.  Data Engineering
-2.  Data Exploration
-3.  Data Cleaning
+    a.  Data Engineering
+    b.  Data Exploration
+    c.  Data Cleaning
 
 <!-- -->
 
