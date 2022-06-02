@@ -834,9 +834,9 @@ head(centrality)
 ```
 
     ##   examiner_id degree_centrality betweenness_centrality eigenvector_centrality
-    ## 1       84356                17             22.0000000           3.117146e-10
-    ## 2       92953                 1              0.0000000           3.262635e-19
-    ## 3       72253                28             94.0000000           7.153516e-11
+    ## 1       84356                17             22.0000000           3.117147e-10
+    ## 2       92953                 1              0.0000000           6.700396e-18
+    ## 3       72253                28             94.0000000           7.153527e-11
     ## 4       67078                 2              0.0000000           1.177571e-08
     ## 5       91688                12              0.7936508           5.901232e-10
     ## 6       61797                25              0.0000000           4.146497e-07
@@ -875,8 +875,8 @@ head(examiner_joined) #1447
     ## 2           1.221788e-06         4.785903e-07
     ## 3           6.445086e-05         4.779288e-07
     ## 4           2.212934e-10         4.782593e-07
-    ## 5           5.042846e-13         4.779288e-07
-    ## 6           4.941850e-12         4.779288e-07
+    ## 5           5.043025e-13         4.779288e-07
+    ## 6           4.941857e-12         4.779288e-07
 
 ### Work groups selection (applicable for analysis zoom-in)
 
@@ -913,17 +913,12 @@ processing time for the selected examiners.
 
 ``` r
 # plot the data distribution of application processing time
-plot1 <- examiner_joined %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
-plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
-plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
-plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
+plot1 <- examiner_joined %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
+plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
+plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
+plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
 grid.arrange(plot1,plot2,plot3,plot4, ncol=2, widths=c(1,1))
 ```
-
-    ## Don't know how to automatically pick scale for object of type difftime. Defaulting to continuous.
-    ## Don't know how to automatically pick scale for object of type difftime. Defaulting to continuous.
-    ## Don't know how to automatically pick scale for object of type difftime. Defaulting to continuous.
-    ## Don't know how to automatically pick scale for object of type difftime. Defaulting to continuous.
 
 ![](final_report_files/figure-gfm/unnamed-chunk-19-1.png)<!-- --> We can
 see that the two selected work groups under the same technology centre
@@ -1207,10 +1202,10 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                          0.684                                                       0.859       
     ##                                                (1.182)                                                     (1.194)      
     ##                                                                                                                         
-    ## eigenvector_centrality                                       -2,174,175,757.000                      -1,507,154,642.000 
-    ##                                                              (2,231,984,951.000)                     (2,345,267,964.000)
+    ## eigenvector_centrality                                       -2,174,175,739.000                      -1,507,154,568.000 
+    ##                                                              (2,231,984,951.000)                     (2,345,267,978.000)
     ##                                                                                                                         
-    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,638.000  
+    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,652.000  
     ##                                                                                  (2,256,989,357.000) (2,349,671,706.000)
     ##                                                                                                                         
     ## Constant                  1,289.814***       1,261.027***       1,273.747***         1,897.334*           1,473.949     
@@ -1381,7 +1376,7 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ##                                                                                       (2,896,574.000)                         (2,901,398.000)  
     ##                                                                                                                                                
     ## closeness_centrality                                                                                    -2,300,268,739.000   -895,906,878.000  
-    ##                                                                                                         (3,038,678,695.000) (3,412,273,921.000)
+    ##                                                                                                         (3,038,678,695.000) (3,412,273,920.000)
     ##                                                                                                                                                
     ## as.factor(gender)male                             -81.692            -169.128*            -87.309           -1,156.557          -1,692.842     
     ##                                                  (102.450)           (87.792)            (86.849)           (2,069.662)         (2,394.764)    
@@ -1392,11 +1387,11 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                         13.354**                                                    13.349**      
     ##                                                                       (5.960)                                                     (6.291)      
     ##                                                                                                                                                
-    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,818.000                       1,923,445,239.000 
-    ##                                                                                     (5,006,380,959.000)                     (7,685,871,723.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,801.000                       1,923,445,246.000 
+    ##                                                                                     (5,006,380,938.000)                     (7,685,871,699.000)
     ##                                                                                                                                                
-    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,927.000 
-    ##                                                                                                         (4,273,146,757.000) (5,010,232,175.000)
+    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,931.000 
+    ##                                                                                                         (4,273,146,757.000) (5,010,232,177.000)
     ##                                                                                                                                                
     ## Constant                                        1,339.215***       1,373.178***        1,317.188***          2,427.751           1,815.083     
     ##                                                   (80.164)           (68.066)            (64.610)           (1,473.418)         (1,627.677)    
@@ -1448,13 +1443,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                                                -0.439                                                         -1.255        
     ##                                                                      (2.057)                                                         (4.496)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality                                                              -48,691,822,660.000                        122,650,108,591.000 
-    ##                                                                                    (298,629,770,328.000)                      (656,665,356,332.000)
+    ## eigenvector_centrality                                                              -48,692,295,414.000                        122,650,464,359.000 
+    ##                                                                                    (298,629,719,660.000)                      (656,665,234,451.000)
     ##                                                                                                                                                    
-    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,589,781.000  
-    ##                                                                                                          (47,488,018,473.000) (50,501,008,268.000) 
+    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,583,151.000  
+    ##                                                                                                          (47,488,018,473.000) (50,501,010,038.000) 
     ##                                                                                                                                                    
-    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.340       
+    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.336       
     ##                                                  (112.294)          (104.892)            (108.328)           (22,841.610)         (24,305.100)     
     ##                                                                                                                                                    
     ## degree_centrality:as.factor(gender)male            1.652                                                                              2.003        
@@ -1463,13 +1458,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                          -2.443                                                         -1.524        
     ##                                                                      (5.508)                                                         (6.972)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality:as.factor(gender)male                                        47,059,520,013.000                        -123,737,579,641.000 
-    ##                                                                                    (298,641,576,083.000)                      (656,671,683,520.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        47,059,992,777.000                        -123,737,935,388.000 
+    ##                                                                                    (298,641,525,417.000)                      (656,671,561,641.000)
     ##                                                                                                                                                    
-    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,144,066.000   
-    ##                                                                                                          (47,676,905,724.000) (50,710,134,149.000) 
+    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,137,425.000   
+    ##                                                                                                          (47,676,905,724.000) (50,710,135,911.000) 
     ##                                                                                                                                                    
-    ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.853      
+    ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.850      
     ##                                                   (98.811)           (91.403)            (96.110)            (22,750.360)         (24,204.380)     
     ##                                                                                                                                                    
     ## ---------------------------------------------------------------------------------------------------------------------------------------------------

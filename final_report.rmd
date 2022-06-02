@@ -523,10 +523,10 @@ examiner_joined_2wg <- examiner_joined %>%
 Before we begin, let's take a look at the distribution of application processing time for the selected examiners.
 ```{r}
 # plot the data distribution of application processing time
-plot1 <- examiner_joined %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
-plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
-plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
-plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
+plot1 <- examiner_joined %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
+plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
+plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
+plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
 grid.arrange(plot1,plot2,plot3,plot4, ncol=2, widths=c(1,1))
 ```
 We can see that the two selected work groups under the same technology centre have lower application processing time than USTPO company as a whole. Comparatively, 1780 demonstrates more similar distribution as company-wide, while work group 1770 has even shorter application proc time in general but slightly more outliers towards the higher end. Given the low sample size (79 examiners for 1780 and 66 examiners for 1770), the data limitation shall be acknowledged. 
