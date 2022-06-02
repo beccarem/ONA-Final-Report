@@ -806,7 +806,7 @@ plot1 <- ggplot(examiner_joined_2wg, aes(race)) +
           geom_bar(aes(y = (..count..)/sum(..count..))) + 
           scale_y_continuous(labels=scales::percent) +
           ylab("Relative Frequencies") +
-          ggtitle("Gender distribution for USPTO")
+          ggtitle("Race distribution for USPTO")
 
 plot2 <- ggplot(examiner_joined_2wg, aes(race, mean_app_proc_time)) + 
           geom_bar(posititon="dodge", stat="summary", fun="mean") + 
