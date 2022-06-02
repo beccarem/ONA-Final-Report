@@ -31,13 +31,19 @@ the patent application times and outcomes.
 
 # 2. Methodology
 
-1. Data Pre-processing <br/>
-&nbsp;&nbsp;&nbsp;a.  Data Engineering <br/>
-&nbsp;&nbsp;&nbsp;b.  Data Exploration <br/>
-&nbsp;&nbsp;&nbsp;c.  Data Cleaning
-2. Examining Gender Effect
-3. Examining Tenure Effect
-4. Examining Race Effect
+1.  Data Pre-processing
+
+<!-- -->
+
+1.  Data Engineering
+2.  Data Exploration
+3.  Data Cleaning
+
+<!-- -->
+
+2.  Examining Gender Effect
+3.  Examining Race Effect
+4.  Examining Tenure Effect
 
 # 3. Analysis and Results
 
@@ -829,8 +835,8 @@ head(centrality)
 
     ##   examiner_id degree_centrality betweenness_centrality eigenvector_centrality
     ## 1       84356                17             22.0000000           3.117146e-10
-    ## 2       92953                 1              0.0000000           1.935144e-18
-    ## 3       72253                28             94.0000000           7.153520e-11
+    ## 2       92953                 1              0.0000000           3.262635e-19
+    ## 3       72253                28             94.0000000           7.153516e-11
     ## 4       67078                 2              0.0000000           1.177571e-08
     ## 5       91688                12              0.7936508           5.901232e-10
     ## 6       61797                25              0.0000000           4.146497e-07
@@ -869,7 +875,7 @@ head(examiner_joined) #1447
     ## 2           1.221788e-06         4.785903e-07
     ## 3           6.445086e-05         4.779288e-07
     ## 4           2.212934e-10         4.782593e-07
-    ## 5           5.042884e-13         4.779288e-07
+    ## 5           5.042846e-13         4.779288e-07
     ## 6           4.941850e-12         4.779288e-07
 
 ### Work groups selection (applicable for analysis zoom-in)
@@ -1201,10 +1207,10 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                          0.684                                                       0.859       
     ##                                                (1.182)                                                     (1.194)      
     ##                                                                                                                         
-    ## eigenvector_centrality                                       -2,174,175,755.000                      -1,507,154,635.000 
-    ##                                                              (2,231,984,952.000)                     (2,345,267,965.000)
+    ## eigenvector_centrality                                       -2,174,175,757.000                      -1,507,154,642.000 
+    ##                                                              (2,231,984,951.000)                     (2,345,267,964.000)
     ##                                                                                                                         
-    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,640.000  
+    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,638.000  
     ##                                                                                  (2,256,989,357.000) (2,349,671,706.000)
     ##                                                                                                                         
     ## Constant                  1,289.814***       1,261.027***       1,273.747***         1,897.334*           1,473.949     
@@ -1386,10 +1392,10 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                         13.354**                                                    13.349**      
     ##                                                                       (5.960)                                                     (6.291)      
     ##                                                                                                                                                
-    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,818.000                       1,923,445,218.000 
-    ##                                                                                     (5,006,380,957.000)                     (7,685,871,709.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,818.000                       1,923,445,239.000 
+    ##                                                                                     (5,006,380,959.000)                     (7,685,871,723.000)
     ##                                                                                                                                                
-    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,923.000 
+    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,927.000 
     ##                                                                                                         (4,273,146,757.000) (5,010,232,175.000)
     ##                                                                                                                                                
     ## Constant                                        1,339.215***       1,373.178***        1,317.188***          2,427.751           1,815.083     
@@ -1442,13 +1448,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                                                -0.439                                                         -1.255        
     ##                                                                      (2.057)                                                         (4.496)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality                                                              -48,691,824,239.000                        122,650,134,594.000 
-    ##                                                                                    (298,629,772,020.000)                      (656,665,360,538.000)
+    ## eigenvector_centrality                                                              -48,691,822,660.000                        122,650,108,591.000 
+    ##                                                                                    (298,629,770,328.000)                      (656,665,356,332.000)
     ##                                                                                                                                                    
-    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,589,569.000  
-    ##                                                                                                          (47,488,018,473.000) (50,501,008,207.000) 
+    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,589,781.000  
+    ##                                                                                                          (47,488,018,473.000) (50,501,008,268.000) 
     ##                                                                                                                                                    
-    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.339       
+    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.340       
     ##                                                  (112.294)          (104.892)            (108.328)           (22,841.610)         (24,305.100)     
     ##                                                                                                                                                    
     ## degree_centrality:as.factor(gender)male            1.652                                                                              2.003        
@@ -1457,11 +1463,11 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                          -2.443                                                         -1.524        
     ##                                                                      (5.508)                                                         (6.972)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality:as.factor(gender)male                                        47,059,521,594.000                        -123,737,605,640.000 
-    ##                                                                                    (298,641,577,776.000)                      (656,671,687,727.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        47,059,520,013.000                        -123,737,579,641.000 
+    ##                                                                                    (298,641,576,083.000)                      (656,671,683,520.000)
     ##                                                                                                                                                    
-    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,143,852.000   
-    ##                                                                                                          (47,676,905,724.000) (50,710,134,088.000) 
+    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,144,066.000   
+    ##                                                                                                          (47,676,905,724.000) (50,710,134,149.000) 
     ##                                                                                                                                                    
     ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.853      
     ##                                                   (98.811)           (91.403)            (96.110)            (22,750.360)         (24,204.380)     
@@ -1539,7 +1545,7 @@ summary(seniority_junior_reg)
 
 Based on the summary, for junior examiners, an increase of 1 unit of
 degree centrality, betweenness centrality, and eigen vector centrality,
-means a decrease of process time by 2.11 days, 5.49 days and 5.91e+08
+means a decrease of process time by 2.76 days, 8.63 days and 1.32e+98
 days respectively. Only the closeness centrality has positive
 relationship with the processing time, which means the higher the
 closeness centrality, the longer the processing time. Unfortunately, all
@@ -1585,7 +1591,7 @@ process time by 2.86 days (larger than the amount of change for juniors)
 and 1.33e+08 days(smaller than the amount of change for juniors)
 respectively. Contrastingly, an increase of 1 unit of betweenness
 centrality and closeness centrality causes an increase of process time
-by 6.14 days and 4.15 days respectively. Similarlt, all of the
+by 6.14 days and 4.15 days respectively. Similarly, all of the
 coefficients are not statistically significant.
 
 In the next model, we include seniority as interaction term for each of
@@ -1625,14 +1631,14 @@ summary(seniority_reg)
     ## F-statistic: 0.9559 on 9 and 135 DF,  p-value: 0.4794
 
 According to this model, a junior examiner usually process applications
-6.17 days longer than a senior examiner. Also, the same as the previous
+9.60 days longer than a senior examiner. Also, the same as the previous
 junior model, an increase in any of the centrality predictor results in
 shorter processing time for junior examiners, except for the closeness
-centrality. If the examiner is a senior, an increase in degree
-centrality or closeness centrality results in a shortening of 7.44 days
-or 1.46 days compared to juniors; and increase in betweenness centrality
-or eigen vector centrality incurs a elongation of 6.11 days or 4.58 days
-compared to juniors.
+centrality. If the examiner is a senior, an increase in closeness
+centrality results in a shortening of 3.43e08 days compared to juniors;
+and increase in degree centrality or betweenness centrality or eigen
+vector centrality incurs a elongation of 1.38 days, 9.17 days or 1.11e09
+days compared to juniors.
 
 #### 3.1.3 Impacts of examiners’ race and ethnicity
 
@@ -1825,7 +1831,7 @@ plot1 <- ggplot(examiner_joined_2wg, aes(race)) +
           geom_bar(aes(y = (..count..)/sum(..count..))) + 
           scale_y_continuous(labels=scales::percent) +
           ylab("Relative Frequencies") +
-          ggtitle("Gender distribution for USPTO")
+          ggtitle("Race distribution for USPTO")
 
 plot2 <- ggplot(examiner_joined_2wg, aes(race, mean_app_proc_time)) + 
           geom_bar(posititon="dodge", stat="summary", fun="mean") + 
@@ -1917,7 +1923,7 @@ white examiner, the effect of degree centrality is positive and the
 effect of betweenness centrality is positive in relation to the mean
 application processing time.
 
-## 4. Conclusions and Recommendations
+# 4. Conclusions and Recommendations
 
 To USPTO, it is important to understand the fundamental reasons of
 gender imbalance within the organization and why male examiners in
@@ -1930,8 +1936,9 @@ impact analysis, we are also aware of the strengths and working style of
 females and males that male examiners are more good at building cohesive
 network that all examiners know each other well, while female examiners
 are more good at bridging network that they have close examiners in
-different groups who don’t know each other well when there is better
-gender balance, and less of a benefit under gender imbalance.
+different groups who don’t know each other well - this applies when
+there is better gender balance, and less of a benefit under gender
+imbalance.
 
 With that being said, since the main duty of examiners are processing
 applications, it makes sense that naturally more male examiners with
@@ -1943,7 +1950,15 @@ projects (divergent changes perhaps) which might require involvement of
 examiners on top of business as usual.
 
 Considering the impact of seniority to the mean application processing
-time, …
+time, we found that junior examiners take 9.60 days longer to process
+applications than senior and that for senior, having higher centrality
+score actually hinders their speed in processing the patent
+applications. This could be explained by the greater responsibility they
+take being involved in cohesive and bridging networks under the context
+of an advice net. This is supported by the fact that there more senior
+being consulted than seeking advice in the directed network, and
+pointing towards the need to review workload per seniority level and the
+coaching and mentoring approach to enhance operational efficiency.
 
 Imbalance of examiners’ race and ethnicity is also seen which lack of
 Black and Hispanic data points are too few for us to draw useful
@@ -1954,12 +1969,14 @@ days more in mean processing time while networking for white examiners
 helps reducing mean application processing time. Further study on how
 the racial distribution looks like against the demographic of US might
 help evaluation of inclusion and diversity policy and formulation of
-more targeted internal training and team building to break the obstacles
-to bond or perform efficiently.
+targeted internal training and team building to break the obstacles to
+bond and perform efficiently.
 
 Last but not least, analysis on specific work group level and individual
 level are strongly recommended to evaluate examiner performance more
-fairly in quarterly/yearly review. Different metrics apart from
+fairly in quarterly/yearly reviews. Different metrics apart from
 application processing time / efficiency in handling applications shall
 be included, such as the quality of applications processing, tenure and
-promotion, etc.
+promotion, etc. In this way, we can fit the context of organizational
+network analysis into the bigger picture of human resource strategies
+and
