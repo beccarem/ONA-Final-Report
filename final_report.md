@@ -31,10 +31,10 @@ the patent application times and outcomes.
 
 # 2. Methodology
 
-1. Data Pre-processing
-    a.  Data Engineering
-    b.  Data Exploration
-    c.  Data Cleaning
+1. Data Pre-processing <br/>
+&nbsp;&nbsp;&nbsp;a.  Data Engineering <br/>
+&nbsp;&nbsp;&nbsp;b.  Data Exploration <br/>
+&nbsp;&nbsp;&nbsp;c.  Data Cleaning
 2. Examining Gender Effect
 3. Examining Tenure Effect
 4. Examining Race Effect
