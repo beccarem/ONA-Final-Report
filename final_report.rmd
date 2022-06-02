@@ -224,6 +224,7 @@ application_dates %>%
   ggplot(aes(sample = as.numeric(app_proc_time))) +
   geom_qq()
 ```
+
 Outliers are removed successfully. 
 
 ### Get work group from art unit
@@ -529,6 +530,7 @@ plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = as.numeric(mean_app_proc_t
 plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
 grid.arrange(plot1,plot2,plot3,plot4, ncol=2, widths=c(1,1))
 ```
+
 We can see that the two selected work groups under the same technology centre have lower application processing time than USTPO company as a whole. Comparatively, 1780 demonstrates more similar distribution as company-wide, while work group 1770 has even shorter application proc time in general but slightly more outliers towards the higher end. Given the low sample size (79 examiners for 1780 and 66 examiners for 1770), the data limitation shall be acknowledged. 
 
 Also we would like to understand the network for the two selected work groups. 
