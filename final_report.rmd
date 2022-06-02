@@ -22,6 +22,15 @@ One of the challenges is the time it takes examiners to process an application. 
 Our goal is to understand what causes delays in processing times, which characteristics makes examiners more efficient in their work and how can network analysis solve the organizational difficulties that USPTO is facing. We will focus on determining the organizational and social factors associated with the length of patent application prosecution. We will look at how examiner's demographics (gender, race, tenure) are related to their application processing time. We will also look at the social advice network within the organization plays a role in improving the patent application times and outcomes.
 
 # 2. Methodology
+1. Data Pre-processing
+a. Data Engineering
+b. Data Exploration
+c. Data Cleaning
+2. Examining Gender Effect
+3. Examining Race Effect
+4. Examining Tenure Effect
+
+# 3. Analysis and Results
 Load the applications data from 'app_data_sample.parquet' and edges data from 'edges_sample.csv'
 
 ```{r load-data}
@@ -402,6 +411,7 @@ examiner_aus <- data.frame(examiners) %>%
 
 head(examiner_aus) #2591
 ```
+
 ### Compute centrality of examiners
 ```{r}
 # separate from edges examiners seek and give advice
@@ -441,7 +451,6 @@ head(network)
   dplyr::summarise(count = n())
 ```
 There are more junior seeking advice from senior than peer advice seeking (junior to junior, senior to senior). It is the fewest for senior to seek advice from junior. 
-
 
 ```{r}
 # create edge list
@@ -491,7 +500,6 @@ examiner_joined <- examiner_joined %>%
 head(examiner_joined) #1447
 ```
 
-
 ### Work groups selection (applicable for analysis zoom-in)
 ```{r}
 # select the workgroups under the same technology centre with most examiners at t1 for our analysis, as advice dates are all in 2008
@@ -502,7 +510,6 @@ examiner_joined %>%
   head(4)
 ```
 
-
 Hence, we're selecting work groups 1780 and 1770 under the same technology centre 1700 for further analysis. 
 ```{r}
 examiner_joined_1780 = examiner_joined[examiner_joined$wg==1780,]
@@ -512,12 +519,187 @@ examiner_joined_2wg <- examiner_joined %>%
   filter(wg == 1780 | wg == 1770)
 ```
 
-# 3. Analysis and Results
 ### 3.1 Organization and social factors associated with the length of patent application prosecution
+Before we begin, let's take a look at the distribution of application processing time for the selected examiners.
+```{r}
+# plot the data distribution of application processing time
+plot1 <- examiner_joined %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
+plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
+plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
+plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = mean_app_proc_time)) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
+grid.arrange(plot1,plot2,plot3,plot4, ncol=2, widths=c(1,1))
+```
+We can see that the two selected work groups under the same technology centre have lower application processing time than USTPO company as a whole. Comparatively, 1780 demonstrates more similar distribution as company-wide, while work group 1770 has even shorter application proc time in general but slightly more outliers towards the higher end. Given the low sample size (79 examiners for 1780 and 66 examiners for 1770), the data limitation shall be acknowledged. 
 
-#### 3.1.1 Impacts of examiners' gender
+Also we would like to understand the network for the two selected work groups. 
 
-#### 3.1.2 Impacts of examiners' seniority
+```{r}
+nodes <- left_join(nodes, examiner_joined, by = c("id" = "examiner_id")) %>% select(id,wg,examiner_art_unit)
+nodes_2wg <- nodes %>% filter(wg == 1780 | wg == 1770)
+edge_list_2wg <- edge_list %>% filter(ego_examiner_id %in% nodes_2wg$id) %>% filter(alter_examiner_id %in% nodes_2wg$id)
+advice_net_2wg = graph_from_data_frame(d=edge_list_2wg, vertices=nodes_2wg, directed=TRUE)
+
+V(advice_net_2wg)$dc <- degree(advice_net_2wg)
+
+library(ggraph)
+ggraph(advice_net_2wg, layout="kk") +
+  geom_edge_link()+
+  geom_node_point(aes(size=dc, color=nodes_2wg$examiner_art_unit), show.legend=T)
+```
+
+#### 3.1.1 Impacts of centrality
+As a consulting team, we would like to analyze how examiners' gender is associated with the length of the patent application processing time. Here we would focus on both the USPTO organizational level and selected work groups levels in t1 period. 
+
+Firstly, we run 4 linear regression models on organizational level to understand the effect of each centrality measure to the application process time separately.
+
+```{r}
+#install.packages("stargazer")
+library(stargazer)
+
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined)
+
+stargazer(reg1,reg2,reg3,reg4,type="text", title="Impacts of Each Centrality Measure to Application Processing Time (USPTO level)")
+```
+
+Both degree centrality and betweenness centrality have a negative relation to the mean application processing time. Adding one more unit in degree centrality and betweenness centrality subtract, on average, mean application processing time by 0.101 days and 0.013 days respectively, if holding everything else equal. The higher these centrality scores, the faster the application processing. 
+
+Both eigenvector centrality and closesness centrality (ranged from 0 to 1) have a positive relation to the mean application processing time. Adding 0.1 more unit in eigenvector centrality adds mean application processing time by 27.2 days and adding 0.1 more unit in eigenvector centrality adds mean application processing time by 1.3e08 days, if holding everything else equal. The higher these centrality scores, the slower the application processing. This means having relationship with examiners who have high scores would take longer processing time, potentially due to more workload assigned, and the more distant an examiner is with other examiners, the more the longer the processing time, potentially due to lack of peer support. 
+
+Now, let's take a look at the correlation of the 4 centrality measures and run a regression to understand the effect of the centrality measure to the application process time together. 
+
+```{r}
+library(ggcorrplot)
+quantvars <- examiner_joined %>% select(mean_app_proc_time, tenure_days, n_app, degree_centrality, betweenness_centrality, eigenvector_centrality, closeness_centrality)
+quantvars$mean_app_proc_time = as.numeric(quantvars$mean_app_proc_time)
+# populating correlation matrix
+corr_matrix = cor(quantvars)
+ggcorrplot(corr_matrix)
+```
+From the correlation matrix we can see that the target variable app_proc_time has no strong correlation with other numeric variables. The centrality measures have strong correlation with each other - relatively stronger for degree centrality with all other measures and slightly stronger correlation between betweenness centrality and closeness centrality. 
+
+Then, we look into all measures in one linear regression model and observed consistent results - an increase in degree centrality and betweenness centrality reduces application processing time while an in crease in eigenvector centrality and closeness centrality increases application processing time. 
+
+```{r}
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (USPTO level)")
+```
+
+Next, we will repeat the steps for the two selected work groups. 
+```{r}
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg)
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level)")
+```
+
+Unlike company level, all centrality measures except betweenness centrality reduce application process time for the two selected work groups. This finding is consistent across running regression separately and combined. 
+
+Degree centrality, eigenvector centrality and closeness centrality have a negative relation to the mean application processing time. Adding one more unit of degree centrality subtract, on average, mean application processing time by 1.84 days and adding 0.1 unit of  eigenvector centrality and closeness centrality add 7.33e04 days and 1.14e08 respectively, if holding everything else equal. The higher these centrality scores, the faster the application processing. 
+
+Only betweenness centrality have a positive relation to the mean application processing time. Adding 0.1 more unit in eigenvector centrality adds mean application processing time by 0.129 days, if holding everything else equal. This means having relationship with examiners who have high has the greatest influence over the flow of information between seats would take longer processing time, potentially due to some bottleneck or centralized review needed within the work groups. 
+
+Overall, the effect of centrality is greater for work groups 2450 and 2480 than in the entire USPTO organization. This is potentially due to the nature of applications that require more communications, collaborations and advice seeking in specific domain subjects. This is in line with the work group shortlisting approach taken in our methodology. 
+
+#### 3.1.2 Impacts of examiners' gender
+Now that we have a general idea on the relationship of centrality measures to application processing, we can overlay different dimensions on top and evaluate if there is different level of impacts. We will focus on the 2 work groups 1780 and 1770 shortlisted and begin with examiner's gender in t1 period. 
+
+```{r}
+# male
+examiner_joined_2wg_m <- examiner_joined_2wg %>%
+  filter(gender == "male")
+
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg_m)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg_m)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg_m)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg_m)
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg_m)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, male)")
+```
+
+```{r}
+# female
+examiner_joined_2wg_f <- examiner_joined_2wg %>%
+  filter(gender == "female")
+
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg_f)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg_f)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg_f)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg_f)
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg_f)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, female)")
+```
+
+
+It is interesting to observe that the degree centrality effect in reducing application processing time is more in males (adding one more unit subtracts application processing time by 1.89 days) than females (subtracts 1.48 days) and the betweenness centrality effect adds application processing for male but reduces application processing time for female. This shows the different strengths and preferences on how to get applications processed by gender. Male examiners are more good at building cohesive network that all examiners know each other well, while female examiners are more good at bridging network that they have close examiners in different groups who don't know each other well. Also, bridging network seems to be more effective in reducing application processing time for female examiners while it could be counter-productive for male. 
+
+To better understand potential reasons and control for other characteristics of examiner that might influence the relationship, let's take a look at the distribution of gender on company level and work group level.
+
+```{r}
+library(ggplot2)
+library(scales)  
+library(gridExtra)
+
+plot1 <- ggplot(examiner_joined, aes(gender)) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") + ylim(0,1) +
+          ggtitle("Gender distribution for USPTO")
+plot2 <- ggplot(examiner_joined_2wg, aes(gender)) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") + ylim(0,1) +
+          ggtitle("Gender distribution for 2wg")
+plot3 <- ggplot(examiner_joined_1780, aes(gender)) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") + ylim(0,1) +
+          ggtitle("Gender distribution for 1780")
+plot4 <- ggplot(examiner_joined_1770, aes(gender)) + 
+          geom_bar(aes(y = (..count..)/sum(..count..))) + 
+          scale_y_continuous(labels=scales::percent) +
+          ylab("Relative Frequencies") + ylim(0,1) +
+          ggtitle("Gender distribution for 1770")
+grid.arrange(plot1,plot2,plot3,plot4,ncol=2, widths=c(1,1))
+```
+
+It is observed that there is systematic bias in gender for USPTO and selected work groups that there are more male examiners than female. Among the 2 selected work group, 1780 has better gender balance and 1770 has worse gender balance when compared to company-level. Gender shall be taken into consideration in the formulation of regression overall. 
+
+Let's repeat running the regression with interaction terms of gender and centrality. This time we're going to take a more micro-view per each of the selected work groups as their gender distributions are so different. 
+```{r}
+# 1780, gender x centrality
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality+as.factor(gender)+degree_centrality*as.factor(gender),data=examiner_joined_1780)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality+as.factor(gender)+betweenness_centrality*as.factor(gender),data=examiner_joined_1780)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality+as.factor(gender)+eigenvector_centrality*as.factor(gender),data=examiner_joined_1780)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality+as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1780)
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality+as.factor(gender)+degree_centrality*as.factor(gender)+betweenness_centrality*as.factor(gender)+eigenvector_centrality*as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1780)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (1780 wg level, centrality x gender)")
+```
+
+Looking into work group 1780 which has better gender balance, the effect of different centrality measures to mean application time separately in the 1st to 4th regression is consistent with combining them together for evaluation in the 5th regression. Increase in any of the four centrality measures can reduce the application processing time. 
+Being a male examiner subtracts, on average, mean application processing time by 1693 days, if holding everything else equal. 
+The interaction terms of gender x centrality has shown that being a male examiner, the effect of degree centrality is negative and the effect of betweenness centrality is positive in relation to the mean application processing time - this supports the robustness of our above finding per gender that male examiners are more good at building cohesive network while female examiners are more good at bridging network. 
+
+```{r}
+# 1770, gender x centrality
+reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality+as.factor(gender)+degree_centrality*as.factor(gender),data=examiner_joined_1770)
+reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality+as.factor(gender)+betweenness_centrality*as.factor(gender),data=examiner_joined_1770)
+reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality+as.factor(gender)+eigenvector_centrality*as.factor(gender),data=examiner_joined_1770)
+reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality+as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1770)
+reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality+as.factor(gender)+degree_centrality*as.factor(gender)+betweenness_centrality*as.factor(gender)+eigenvector_centrality*as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1770)
+stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (1770 wg level, centrality x gender)")
+```
+
+Looking into work group 1770 which has more severe gender imbalance towards male, the overall findings are similar to work group 1780 - the effect of different centrality measures to mean application time separately in the 1st to 4th regression is consistent with combining them together for evaluation in the 5th regression. Increase in any of the four centrality measures can reduce the application processing time. 
+Being a male examiner subtracts, on average, mean application processing time by 274 days, if holding everything else equal. 
+
+However, the interaction terms of gender x centrality has shown that being a male examiner, the effect of degree centrality is positive and the effect of betweenness centrality is negative in relation to the mean application processing time - this can potentially be explained by the hypothesis that even male examiners are more good at building cohesive network it may be a cons than pros in a male dominating work group, and that even female examiners are more good at bridging network they might not perform as well when they are the minority. These warrant further analysis beyond application processing time on how the gender distributions impact examiners' networking among different work groups. 
+
+#### 3.1.3 Impacts of examiners' seniority
 We are interested in how examiners' seniority influences the application process time. Here, we focus on the seniority state of examiners in t1 period. 
 
 Firstly, We fit a linear regression between the mean application processing time and the centralities for all junior examiners. 
@@ -556,7 +738,6 @@ According to this model, a junior examiner usually process applications 6.17 day
 
 
 #### 3.1.3 Impacts of examiners' race and ethnicity
-
 ```{r}
 # asian
 examiner_joined_2wg_asian <- examiner_joined_2wg %>% filter(race == "asian")
@@ -645,8 +826,14 @@ summary(race_reg)
 
 Adding one more unit in degree centrality subtracts, on average, mean application processing time by 2.8 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, mean application processing time by 1 days, if holding everything else equal. Being a black examiner adds, on average, mean application processing time by 185 days, if holding everything else equal. The interaction terms of race x centrality has shown that being a white examiner, the effect of degree centrality is positive and the effect of betweenness centrality is positive in relation to the mean application processing time.
 
- 
 ## 4. Conclusions and Recommendations
 
+To USPTO, it is important to understand the fundamental reasons of gender imbalance within the organization and why male examiners in general takes 274 less days to process applications in selected work groups. With centrality, we can conclude that a cohesive network around an examiner is important to the efficiency of processing patent applications, and implies that application processing is more an non-divergent organizational change than a divergent change. From gender impact analysis, we are also aware of the strengths and working style of females and males that male examiners are more good at building cohesive network that all examiners know each other well, while female examiners are more good at bridging network that they have close examiners in different groups who don't know each other well when there is better gender balance, and less of a benefit under gender imbalance.
 
+With that being said, since the main duty of examiners are processing applications, it makes sense that naturally more male examiners with network building capabilities are acquired to perform the day-to-day task. However, from a gender equity perspective, it is more beneficial to strike a gender balance to promote organization diversity & inclusion. To USPTO business, there could be other transformation projects (divergent changes perhaps) which might require involvement of examiners on top of business as usual. 
 
+Considering the impact of seniority to the mean application processing time, ...
+
+Imbalance of examiners' race and ethnicity is also seen which lack of Black and Hispanic data points are too few for us to draw useful conclusion on the company level. Under similar limitations, a closer look into the selected work groups at least shed us some light on potential racial inequality issue that being a black examiner takes 185 days more in mean processing time while networking for white examiners helps reducing mean application processing time. Further study on how the racial distribution looks like against the demographic of US might help evaluation of inclusion and diversity policy and formulation of more targeted internal training and team building to break the obstacles to bond or perform efficiently.  
+
+Last but not least, analysis on specific work group level and individual level are strongly recommended to evaluate examiner performance more fairly in quarterly/yearly review. Different metrics apart from application processing time / efficiency in handling applications shall be included, such as the quality of applications processing, tenure and promotion, etc. 
