@@ -22,27 +22,15 @@ One of the challenges is the time it takes examiners to process an application. 
 Our goal is to understand what causes delays in processing times, which characteristics makes examiners more efficient in their work and how can network analysis solve the organizational difficulties that USPTO is facing. We will focus on determining the organizational and social factors associated with the length of patent application prosecution. We will look at how examiner's demographics (gender, race, tenure) are related to their application processing time. We will also look at the social advice network within the organization plays a role in improving the patent application times and outcomes.
 
 # 2. Methodology
-<<<<<<< HEAD
 1. Data Pre-processing
 a. Data Engineering
 b. Data Exploration
 c. Data Cleaning
-=======
-
-1. Data Pre-processing
-a. Data engineering
-b. Data exploration
-c. Data cleaning
->>>>>>> dc835286d91a10e633e5bdc8a547de0dd6eaac1e
 2. Examining Gender Effect
 3. Examining Race Effect
 4. Examining Tenure Effect
 
 # 3. Analysis and Results
-<<<<<<< HEAD
-=======
-
->>>>>>> dc835286d91a10e633e5bdc8a547de0dd6eaac1e
 Load the applications data from 'app_data_sample.parquet' and edges data from 'edges_sample.csv'
 
 ```{r load-data}
@@ -838,11 +826,8 @@ summary(race_reg)
 
 Adding one more unit in degree centrality subtracts, on average, mean application processing time by 2.8 days, if holding everything else equal. Adding one more unit in betweenness centrality subtracts, on average, mean application processing time by 1 days, if holding everything else equal. Being a black examiner adds, on average, mean application processing time by 185 days, if holding everything else equal. The interaction terms of race x centrality has shown that being a white examiner, the effect of degree centrality is positive and the effect of betweenness centrality is positive in relation to the mean application processing time.
 
-<<<<<<< HEAD
-## 4. Conclusions and Recommendations
-=======
+
 # 4. Conclusions and Recommendations
->>>>>>> dc835286d91a10e633e5bdc8a547de0dd6eaac1e
 
 To USPTO, it is important to understand the fundamental reasons of gender imbalance within the organization and why male examiners in general takes 274 less days to process applications in selected work groups. With centrality, we can conclude that a cohesive network around an examiner is important to the efficiency of processing patent applications, and implies that application processing is more an non-divergent organizational change than a divergent change. From gender impact analysis, we are also aware of the strengths and working style of females and males that male examiners are more good at building cohesive network that all examiners know each other well, while female examiners are more good at bridging network that they have close examiners in different groups who don't know each other well when there is better gender balance, and less of a benefit under gender imbalance.
 
