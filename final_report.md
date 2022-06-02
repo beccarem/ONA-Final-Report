@@ -831,7 +831,7 @@ head(centrality)
     ##   examiner_id degree_centrality betweenness_centrality eigenvector_centrality
     ## 1       84356                17             22.0000000           3.117146e-10
     ## 2       92953                 1              0.0000000           0.000000e+00
-    ## 3       72253                28             94.0000000           7.153516e-11
+    ## 3       72253                28             94.0000000           7.153513e-11
     ## 4       67078                 2              0.0000000           1.177571e-08
     ## 5       91688                12              0.7936508           5.901232e-10
     ## 6       61797                25              0.0000000           4.146497e-07
@@ -870,8 +870,8 @@ head(examiner_joined) #1447
     ## 2           1.221788e-06         4.785903e-07
     ## 3           6.445086e-05         4.779288e-07
     ## 4           2.212934e-10         4.782593e-07
-    ## 5           5.042840e-13         4.779288e-07
-    ## 6           4.941852e-12         4.779288e-07
+    ## 5           5.042799e-13         4.779288e-07
+    ## 6           4.941848e-12         4.779288e-07
 
 ### Work groups selection (applicable for analysis zoom-in)
 
@@ -1016,7 +1016,7 @@ respectively, if holding everything else equal. The higher these
 centrality scores, the faster the application processing.
 
 Both eigenvector centrality and closesness centrality (ranged from 0 to
-1) have a positive relation to the mean application processing time.
+1 ) have a positive relation to the mean application processing time.
 Adding 0.1 more unit in eigenvector centrality adds mean application
 processing time by 27.2 days and adding 0.1 more unit in eigenvector
 centrality adds mean application processing time by 1.3e08 days, if
@@ -1198,8 +1198,8 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                          0.684                                                       0.859       
     ##                                                (1.182)                                                     (1.194)      
     ##                                                                                                                         
-    ## eigenvector_centrality                                       -2,174,175,746.000                      -1,507,154,607.000 
-    ##                                                              (2,231,984,953.000)                     (2,345,267,972.000)
+    ## eigenvector_centrality                                       -2,174,175,743.000                      -1,507,154,596.000 
+    ##                                                              (2,231,984,956.000)                     (2,345,267,976.000)
     ##                                                                                                                         
     ## closeness_centrality                                                             -1,310,550,071.000   -388,030,645.000  
     ##                                                                                  (2,256,989,357.000) (2,349,671,706.000)
@@ -1383,11 +1383,11 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                         13.354**                                                    13.349**      
     ##                                                                       (5.960)                                                     (6.291)      
     ##                                                                                                                                                
-    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,820.000                       1,923,445,216.000 
-    ##                                                                                     (5,006,380,968.000)                     (7,685,871,718.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,839.000                       1,923,445,222.000 
+    ##                                                                                     (5,006,380,988.000)                     (7,685,871,748.000)
     ##                                                                                                                                                
-    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,922.000 
-    ##                                                                                                         (4,273,146,757.000) (5,010,232,175.000)
+    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,920.000 
+    ##                                                                                                         (4,273,146,757.000) (5,010,232,173.000)
     ##                                                                                                                                                
     ## Constant                                        1,339.215***       1,373.178***        1,317.188***          2,427.751           1,815.083     
     ##                                                   (80.164)           (68.066)            (64.610)           (1,473.418)         (1,627.677)    
@@ -1439,13 +1439,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                                                -0.439                                                         -1.255        
     ##                                                                      (2.057)                                                         (4.496)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality                                                              -48,692,104,535.000                        122,650,259,994.000 
-    ##                                                                                    (298,629,739,182.000)                      (656,665,277,101.000)
+    ## eigenvector_centrality                                                              -48,692,180,748.000                        122,650,297,810.000 
+    ##                                                                                    (298,629,731,889.000)                      (656,665,245,994.000)
     ##                                                                                                                                                    
-    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,586,300.000  
-    ##                                                                                                          (47,488,018,473.000) (50,501,009,490.000) 
+    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,585,214.000  
+    ##                                                                                                          (47,488,018,473.000) (50,501,009,945.000) 
     ##                                                                                                                                                    
-    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.338       
+    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.337       
     ##                                                  (112.294)          (104.892)            (108.328)           (22,841.610)         (24,305.100)     
     ##                                                                                                                                                    
     ## degree_centrality:as.factor(gender)male            1.652                                                                              2.003        
@@ -1454,13 +1454,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                          -2.443                                                         -1.524        
     ##                                                                      (5.508)                                                         (6.972)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality:as.factor(gender)male                                        47,059,801,893.000                        -123,737,731,034.000 
-    ##                                                                                    (298,641,544,939.000)                      (656,671,604,290.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        47,059,878,108.000                        -123,737,768,846.000 
+    ##                                                                                    (298,641,537,646.000)                      (656,671,573,183.000)
     ##                                                                                                                                                    
-    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,140,579.000   
-    ##                                                                                                          (47,676,905,724.000) (50,710,135,366.000) 
+    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,139,491.000   
+    ##                                                                                                          (47,676,905,724.000) (50,710,135,819.000) 
     ##                                                                                                                                                    
-    ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.852      
+    ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.851      
     ##                                                   (98.811)           (91.403)            (96.110)            (22,750.360)         (24,204.380)     
     ##                                                                                                                                                    
     ## ---------------------------------------------------------------------------------------------------------------------------------------------------
