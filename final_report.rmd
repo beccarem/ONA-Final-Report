@@ -206,7 +206,7 @@ It seems some application processing time have negative value abnormally. Let's 
 ```{r}
 # plot the data distribution of application processing time
 application_dates %>%
-  ggplot(aes(sample = app_proc_time)) +
+  ggplot(aes(sample = as.numeric(app_proc_time))) +
   geom_qq()
 ```
 
@@ -221,7 +221,7 @@ head(application_dates) #1,688,672 applications
 ```{r}
 # plot again the data distribution of application processing time after cleaning
 application_dates %>%
-  ggplot(aes(sample = app_proc_time)) +
+  ggplot(aes(sample = as.numeric(app_proc_time))) +
   geom_qq()
 ```
 Outliers are removed successfully. 
