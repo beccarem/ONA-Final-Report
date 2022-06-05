@@ -143,51 +143,12 @@ Let’s now identify the earliest and the latest date for each examiner
 and calculate the difference in days, which is their tenure in the
 organization.
 
-|                                                  |            |
-|:-------------------------------------------------|:-----------|
-| Name                                             | Piped data |
-| Number of rows                                   | 5625       |
-| Number of columns                                | 3          |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |            |
-| Column type frequency:                           |            |
-| Date                                             | 2          |
-| numeric                                          | 1          |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |            |
-| Group variables                                  | None       |
-
-Data summary
-
-**Variable type: Date**
-
-| skim\_variable | n\_missing | complete\_rate | min        | max        | median     | n\_unique |
-|:---------------|-----------:|---------------:|:-----------|:-----------|:-----------|----------:|
-| earliest\_date |          0 |              1 | 2000-01-02 | 2016-03-03 | 2003-01-21 |      2322 |
-| latest\_date   |          0 |              1 | 2000-09-14 | 2017-12-06 | 2017-05-19 |       870 |
-
-**Variable type: numeric**
-
-| skim\_variable | n\_missing | complete\_rate |    mean |      sd |  p0 |  p25 |  p50 |  p75 | p100 | hist  |
-|:---------------|-----------:|---------------:|--------:|--------:|----:|-----:|-----:|-----:|-----:|:------|
-| tenure\_days   |          0 |              1 | 4429.51 | 1795.54 |  27 | 3096 | 4912 | 6091 | 6518 | ▂▂▂▅▇ |
-
 Joining back to the applications data.
 
 ### Create application processing time variable
 
 Compute the final decision date as either abandon date or patent issue
 date.
-
-    ## # A tibble: 6 × 10
-    ##   application_number filing_date abandon_date patent_issue_date decision_date
-    ##   <chr>              <date>      <date>       <date>            <date>       
-    ## 1 08284457           2000-01-26  NA           2003-02-18        2003-02-18   
-    ## 2 08413193           2000-10-11  NA           2002-08-27        2002-08-27   
-    ## 3 08531853           2000-05-17  NA           1997-03-04        1997-03-04   
-    ## 4 08637752           2001-07-20  NA           2005-08-09        2005-08-09   
-    ## 5 08682726           2000-04-10  2000-12-27   NA                2000-12-27   
-    ## 6 08687412           2000-04-28  NA           2001-07-31        2001-07-31   
-    ## # … with 5 more variables: examiner_id <dbl>, examiner_art_unit <dbl>,
-    ## #   gender <chr>, race <chr>, tenure_days <dbl>
 
     ## # A tibble: 6 × 11
     ##   application_number filing_date abandon_date patent_issue_date decision_date
@@ -227,30 +188,6 @@ Joining back to the applications dates data.
 ### Generate examiner panel dataset
 
 Compute average application processing time
-
-    ## `summarise()` has grouped output by 'examiner_id', 'period', 'wg', 'examiner_art_unit', 'gender', 'race', 'tenure_days', 't0_state', 't1_state', 't2_state', 't3_state', 't4_state', 't5_state', 't6_state', 't7_state'. You can override using the `.groups` argument.
-
-    ##   examiner_id period   wg examiner_art_unit gender  race tenure_days t0_state
-    ## 1       59012     t0 1710              1716   male white        4013   Junior
-    ## 2       59012     t0 1710              1717   male white        4013   Junior
-    ## 3       59012     t1 1710              1716   male white        4013   Junior
-    ## 4       59012     t1 1710              1717   male white        4013   Junior
-    ## 5       59012     t3 1710              1716   male white        4013   Junior
-    ## 6       59056     t0 2120              2124   male asian        6268   Senior
-    ##   t1_state t2_state t3_state t4_state t5_state t6_state t7_state t8_state
-    ## 1   Junior   Junior   Junior   Senior   Senior   Senior   Senior     Exit
-    ## 2   Junior   Junior   Junior   Senior   Senior   Senior   Senior     Exit
-    ## 3   Junior   Junior   Junior   Senior   Senior   Senior   Senior     Exit
-    ## 4   Junior   Junior   Junior   Senior   Senior   Senior   Senior     Exit
-    ## 5   Junior   Junior   Junior   Senior   Senior   Senior   Senior     Exit
-    ## 6   Senior   Senior   Senior   Senior   Senior   Senior   Senior   Senior
-    ##   mean_app_proc_time n_app
-    ## 1      1232.312 days    32
-    ## 2      1379.429 days    14
-    ## 3      1003.286 days     7
-    ## 4      1131.000 days    10
-    ## 5       273.000 days     1
-    ## 6      1740.000 days     1
 
 #### Create panel dataset of examiners for analysis
 
@@ -389,8 +326,9 @@ Now, let’s take a look at the correlation of the 4 centrality measures
 and run a regression to understand the effect of the centrality measure
 to the application process time together.
 
-![](final_report_files/figure-gfm/unnamed-chunk-25-1.png)<!-- --> From
-the correlation matrix we can see that the target variable
+![](final_report_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+
+From the correlation matrix we can see that the target variable
 app\_proc\_time has no strong correlation with other numeric variables.
 The centrality measures have strong correlation with each other -
 relatively stronger for degree centrality with all other measures and
@@ -505,70 +443,6 @@ on top and evaluate if there is different level of impacts. We will
 focus on the 2 work groups 1780 and 1770 shortlisted and begin with
 examiner’s gender in t1 period.
 
-    ## 
-    ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, male)
-    ## ========================================================================================================================
-    ##                                                               Dependent variable:                                       
-    ##                        -------------------------------------------------------------------------------------------------
-    ##                                                         as.numeric(mean_app_proc_time)                                  
-    ##                               (1)                (2)                 (3)                 (4)                 (5)        
-    ## ------------------------------------------------------------------------------------------------------------------------
-    ## degree_centrality            -2.165                                                                        -1.894       
-    ##                             (1.558)                                                                        (1.697)      
-    ##                                                                                                                         
-    ## betweenness_centrality                          0.684                                                       0.859       
-    ##                                                (1.182)                                                     (1.194)      
-    ##                                                                                                                         
-    ## eigenvector_centrality                                       -2,174,175,763.000                      -1,507,154,676.000 
-    ##                                                              (2,231,984,949.000)                     (2,345,267,955.000)
-    ##                                                                                                                         
-    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,633.000  
-    ##                                                                                  (2,256,989,357.000) (2,349,671,705.000)
-    ##                                                                                                                         
-    ## Constant                  1,289.814***       1,261.027***       1,273.747***         1,897.334*           1,473.949     
-    ##                             (38.318)           (35.235)           (35.298)           (1,088.681)         (1,128.982)    
-    ##                                                                                                                         
-    ## ------------------------------------------------------------------------------------------------------------------------
-    ## Observations                   95                 95                 95                  95                  95         
-    ## R2                           0.020              0.004               0.010               0.004               0.030       
-    ## Adjusted R2                  0.010              -0.007             -0.001              -0.007              -0.013       
-    ## Residual Std. Error    332.245 (df = 93)  335.075 (df = 93)   333.978 (df = 93)   335.070 (df = 93)   336.005 (df = 90) 
-    ## F Statistic            1.931 (df = 1; 93) 0.334 (df = 1; 93) 0.949 (df = 1; 93)  0.337 (df = 1; 93)  0.705 (df = 4; 90) 
-    ## ========================================================================================================================
-    ## Note:                                                                                        *p<0.1; **p<0.05; ***p<0.01
-
-    ## 
-    ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, female)
-    ## =======================================================================================================================
-    ##                                                              Dependent variable:                                       
-    ##                        ------------------------------------------------------------------------------------------------
-    ##                                                         as.numeric(mean_app_proc_time)                                 
-    ##                               (1)                (2)                (3)                 (4)                 (5)        
-    ## -----------------------------------------------------------------------------------------------------------------------
-    ## degree_centrality            -2.031                                                                       -1.487       
-    ##                             (2.944)                                                                       (3.134)      
-    ##                                                                                                                        
-    ## betweenness_centrality                          -1.581                                                    -1.549       
-    ##                                                (2.183)                                                    (2.237)      
-    ##                                                                                                                        
-    ## eigenvector_centrality                                         -1,133,026.000                         -1,271,400.000   
-    ##                                                               (3,096,228.000)                         (3,159,762.000)  
-    ##                                                                                                                        
-    ## closeness_centrality                                                            -2,506,844,397.000  -1,992,146,951.000 
-    ##                                                                                 (3,205,125,562.000) (3,422,545,629.000)
-    ##                                                                                                                        
-    ## Constant                  1,361.097***       1,347.836***       1,338.181***         2,545.286           2,331.557     
-    ##                             (67.569)           (58.790)           (56.951)          (1,548.189)         (1,641.995)    
-    ##                                                                                                                        
-    ## -----------------------------------------------------------------------------------------------------------------------
-    ## Observations                   50                 50                 50                 50                  50         
-    ## R2                           0.010              0.011              0.003               0.013               0.031       
-    ## Adjusted R2                  -0.011             -0.010             -0.018             -0.008              -0.055       
-    ## Residual Std. Error    397.121 (df = 48)  396.922 (df = 48)  398.528 (df = 48)   396.564 (df = 48)   405.756 (df = 45) 
-    ## F Statistic            0.476 (df = 1; 48) 0.524 (df = 1; 48) 0.134 (df = 1; 48) 0.612 (df = 1; 48)  0.359 (df = 4; 45) 
-    ## =======================================================================================================================
-    ## Note:                                                                                       *p<0.1; **p<0.05; ***p<0.01
-
 It is interesting to observe that the degree centrality effect in
 reducing application processing time is more in males (adding one more
 unit subtracts application processing time by 1.89 days) than females
@@ -638,11 +512,11 @@ the selected work groups as their gender distributions are so different.
     ## betweenness_centrality:as.factor(gender)male                         13.354**                                                    13.349**      
     ##                                                                       (5.960)                                                     (6.291)      
     ##                                                                                                                                                
-    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,798.000                       1,923,445,227.000 
-    ##                                                                                     (5,006,380,946.000)                     (7,685,871,688.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,865.000                       1,923,445,254.000 
+    ##                                                                                     (5,006,381,004.000)                     (7,685,871,797.000)
     ##                                                                                                                                                
-    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,927.000 
-    ##                                                                                                         (4,273,146,757.000) (5,010,232,175.000)
+    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,923.000 
+    ##                                                                                                         (4,273,146,757.000) (5,010,232,171.000)
     ##                                                                                                                                                
     ## Constant                                        1,339.215***       1,373.178***        1,317.188***          2,427.751           1,815.083     
     ##                                                   (80.164)           (68.066)            (64.610)           (1,473.418)         (1,627.677)    
@@ -684,11 +558,11 @@ examiners are more good at bridging network.
     ## betweenness_centrality                                                -0.439                                                         -1.255        
     ##                                                                      (2.057)                                                         (4.496)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality                                                              -48,691,613,427.000                        122,649,938,730.000 
-    ##                                                                                    (298,629,792,213.000)                      (656,665,410,011.000)
+    ## eigenvector_centrality                                                              -48,691,519,219.000                        122,649,975,364.000 
+    ##                                                                                    (298,629,806,480.000)                      (656,665,425,151.000)
     ##                                                                                                                                                    
-    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,592,863.000  
-    ##                                                                                                          (47,488,018,473.000) (50,501,007,479.000) 
+    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,592,986.000  
+    ##                                                                                                          (47,488,018,473.000) (50,501,007,080.000) 
     ##                                                                                                                                                    
     ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.341       
     ##                                                  (112.294)          (104.892)            (108.328)           (22,841.610)         (24,305.100)     
@@ -699,11 +573,11 @@ examiners are more good at bridging network.
     ## betweenness_centrality:as.factor(gender)male                          -2.443                                                         -1.524        
     ##                                                                      (5.508)                                                         (6.972)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality:as.factor(gender)male                                        47,059,310,775.000                        -123,737,409,788.000 
-    ##                                                                                    (298,641,597,967.000)                      (656,671,737,199.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        47,059,216,568.000                        -123,737,446,422.000 
+    ##                                                                                    (298,641,612,234.000)                      (656,671,752,339.000)
     ##                                                                                                                                                    
-    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,147,154.000   
-    ##                                                                                                          (47,676,905,724.000) (50,710,133,364.000) 
+    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,147,276.000   
+    ##                                                                                                          (47,676,905,724.000) (50,710,132,966.000) 
     ##                                                                                                                                                    
     ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.855      
     ##                                                   (98.811)           (91.403)            (96.110)            (22,750.360)         (24,204.380)     
@@ -786,11 +660,11 @@ the centrality predictors.
     ## betweenness_centrality                      -8.628               0.544              -8.628       
     ##                                            (13.578)             (1.055)            (12.864)      
     ##                                                                                                  
-    ## eigenvector_centrality                -1,107,117,640.000     -368,935.000     -1,107,117,640.000 
-    ##                                       (3,012,160,700.000)   (2,689,044.000)   (2,853,691,116.000)
+    ## eigenvector_centrality                -1,107,117,644.000     -368,935.000     -1,107,117,644.000 
+    ##                                       (3,012,160,702.000)   (2,689,044.000)   (2,853,691,118.000)
     ##                                                                                                  
-    ## closeness_centrality                  -1,324,153,445.000  -1,667,472,201.000  -1,324,153,445.000 
-    ##                                       (2,884,571,627.000) (3,044,851,915.000) (2,732,814,497.000)
+    ## closeness_centrality                  -1,324,153,442.000  -1,667,472,201.000  -1,324,153,442.000 
+    ##                                       (2,884,571,629.000) (3,044,851,915.000) (2,732,814,498.000)
     ##                                                                                                  
     ## t1_stateSenior:degree_centrality                                                     1.380       
     ##                                                                                     (3.078)      
@@ -798,11 +672,11 @@ the centrality predictors.
     ## t1_stateSenior:betweenness_centrality                                                9.171       
     ##                                                                                    (12.909)      
     ##                                                                                                  
-    ## t1_stateSenior:eigenvector_centrality                                          1,106,748,705.000 
-    ##                                                                               (2,853,692,452.000)
+    ## t1_stateSenior:eigenvector_centrality                                          1,106,748,709.000 
+    ##                                                                               (2,853,692,454.000)
     ##                                                                                                  
-    ## t1_stateSenior:closeness_centrality                                            -343,318,756.000  
-    ##                                                                               (4,152,505,479.000)
+    ## t1_stateSenior:closeness_centrality                                            -343,318,760.000  
+    ##                                                                               (4,152,505,480.000)
     ##                                                                                                  
     ## Constant                                   2,068.548           2,058.946           2,068.548     
     ##                                           (1,385.821)         (1,463.893)         (1,312.913)    

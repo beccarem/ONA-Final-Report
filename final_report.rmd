@@ -151,7 +151,7 @@ examiner_dates <- examiner_dates %>%
 
 Let's now identify the earliest and the latest date for each examiner and calculate the difference in days, which is their tenure in the organization.
 
-```{r tenure-3, echo=FALSE}
+```{r tenure-3, include=FALSE}
 examiner_dates <- examiner_dates %>% 
   group_by(examiner_id) %>% 
   summarise(
@@ -180,7 +180,7 @@ applications <- applications %>%
 
 ### Create application processing time variable
 Compute the final decision date as either abandon date or patent issue date.
-```{r, echo=FALSE}
+```{r, include=FALSE}
 attach(applications)
 library(lubridate)
 
@@ -394,7 +394,7 @@ application_dates <- application_dates %>%
 
 ### Generate examiner panel dataset
 Compute average application processing time
-```{r, echo=FALSE}
+```{r, include=FALSE}
 # compute average application processing time
 
 cols <- c("examiner_id","period", "wg", "examiner_art_unit","gender", "race", "tenure_days",
@@ -592,6 +592,7 @@ quantvars$mean_app_proc_time = as.numeric(quantvars$mean_app_proc_time)
 corr_matrix = cor(quantvars)
 ggcorrplot(corr_matrix)
 ```
+
 From the correlation matrix we can see that the target variable app_proc_time has no strong correlation with other numeric variables. The centrality measures have strong correlation with each other - relatively stronger for degree centrality with all other measures and slightly stronger correlation between betweenness centrality and closeness centrality. 
 
 Then, we look into all measures in one linear regression model and observed consistent results - an increase in degree centrality and betweenness centrality reduces application processing time while an in crease in eigenvector centrality and closeness centrality increases application processing time. 
@@ -622,7 +623,7 @@ Overall, the effect of centrality is greater for work groups 2450 and 2480 than 
 #### 3.1.2 Impacts of examiners' gender
 Now that we have a general idea on the relationship of centrality measures to application processing, we can overlay different dimensions on top and evaluate if there is different level of impacts. We will focus on the 2 work groups 1780 and 1770 shortlisted and begin with examiner's gender in t1 period. 
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 # male
 examiner_joined_2wg_m <- examiner_joined_2wg %>%
   filter(gender == "male")
@@ -635,7 +636,7 @@ reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centralit
 stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, male)")
 ```
 
-```{r, echo=FALSE}
+```{r, include=FALSE}
 # female
 examiner_joined_2wg_f <- examiner_joined_2wg %>%
   filter(gender == "female")
