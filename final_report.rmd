@@ -4,6 +4,7 @@ author: "Chelsea, Rebecca, Diwei, Dany"
 output:
   github_document: default
   pdf_document: default
+  fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
