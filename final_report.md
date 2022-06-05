@@ -50,23 +50,6 @@ the patent application times and outcomes.
 Load the applications data from ‘app\_data\_sample.parquet’ and edges
 data from ‘edges\_sample.csv’
 
-``` r
-applications <- read_parquet("app_data_sample.parquet")
-edges <- read_csv("edges_sample.csv")
-```
-
-    ## Rows: 32906 Columns: 4
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## chr  (1): application_number
-    ## dbl  (2): ego_examiner_id, alter_examiner_id
-    ## date (1): advice_date
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
 ### Get gender for examiners
 
 We’ll get gender based on the first name of the examiner, which is
@@ -82,31 +65,9 @@ Our first step therefore is to get all *unique* names in a separate list
 this table back to the original dataset. So, let’s get names without
 repetition:
 
-``` r
-library(gender)
-#install_genderdata_package() # only run this line the first time you use the package, to get data for it
-# get a list of first names without repetitions
-examiner_names <- applications %>% 
-  distinct(examiner_name_first)
-#examiner_names
-```
-
 Now let’s use function `gender()` as shown in the example for the
 package to attach a gender and probability to each name and put the
 results into the table `examiner_names_gender`
-
-``` r
-# get a table of names and gender
-examiner_names_gender <- examiner_names %>% 
-  do(results = gender(.$examiner_name_first, method = "ssa")) %>% 
-  unnest(cols = c(results), keep_empty = TRUE) %>% 
-  select(
-    examiner_name_first = name,
-    gender,
-    proportion_female
-  )
-examiner_names_gender
-```
 
     ## # A tibble: 1,822 × 3
     ##    examiner_name_first gender proportion_female
@@ -127,47 +88,14 @@ Finally, let’s join that table back to our original applications data
 and discard the temporary tables we have just created to reduce clutter
 in our environment.
 
-``` r
-# remove extra colums from the gender table
-examiner_names_gender <- examiner_names_gender %>% 
-  select(examiner_name_first, gender)
-# joining gender back to the dataset
-applications <- applications %>% 
-  left_join(examiner_names_gender, by = "examiner_name_first")
-# cleaning up
-#gc()
-```
-
 ### Guess the examiner’s race
 
 We’ll now use package `wru` to estimate likely race of an examiner. Just
 like with gender, we’ll get a list of unique names first, only now we
 are using surnames.
 
-``` r
-library(wru)
-examiner_surnames <- applications %>% 
-  select(surname = examiner_name_last) %>% 
-  distinct()
-#examiner_surnames
-```
-
 We’ll follow the instructions for the package outlined here
 <https://github.com/kosukeimai/wru>.
-
-``` r
-examiner_race <- predict_race(voter.file = examiner_surnames, surname.only = T) %>% 
-  as_tibble()
-```
-
-    ## [1] "Proceeding with surname-only predictions..."
-
-    ## Warning in merge_surnames(voter.file): Probabilities were imputed for 698
-    ## surnames that could not be matched to Census list.
-
-``` r
-#examiner_race
-```
 
 As you can see, we get probabilities across five broad US Census
 categories: white, black, Hispanic, Asian and other. (Some of you may
@@ -180,20 +108,6 @@ applications table. See this example for comparing values across
 columns: <https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-rowwise/>.
 And this one for `case_when()` function:
 <https://dplyr.tidyverse.org/reference/case_when.html>.
-
-``` r
-examiner_race <- examiner_race %>% 
-  mutate(max_race_p = pmax(pred.asi, pred.bla, pred.his, pred.oth, pred.whi)) %>% 
-  mutate(race = case_when(
-    max_race_p == pred.asi ~ "asian",
-    max_race_p == pred.bla ~ "black",
-    max_race_p == pred.his ~ "hispanic",
-    max_race_p == pred.oth ~ "other",
-    max_race_p == pred.whi ~ "white",
-    TRUE ~ NA_character_
-  ))
-examiner_race
-```
 
     ## # A tibble: 3,806 × 8
     ##    surname    pred.whi pred.bla pred.his pred.asi pred.oth max_race_p race 
@@ -212,15 +126,6 @@ examiner_race
 
 Let’s join the data back to the applications table.
 
-``` r
-# removing extra columns
-examiner_race <- examiner_race %>% 
-  select(surname,race)
-applications <- applications %>% 
-  left_join(examiner_race, by = c("examiner_name_last" = "surname"))
-#gc()
-```
-
 ### Examiner’s tenure
 
 To figure out the timespan for which we observe each examiner in the
@@ -231,42 +136,12 @@ field `examiner_id`), and earliest and latest dates for each application
 (`filing_date` and `appl_status_date` respectively). We’ll use functions
 in package `lubridate` to work with date and time values.
 
-``` r
-library(lubridate) # to work with dates
-examiner_dates <- applications %>% 
-  select(examiner_id, filing_date, appl_status_date) 
-#examiner_dates
-```
-
 The dates look inconsistent in terms of formatting. Let’s make them
 consistent. We’ll create new variables `start_date` and `end_date`.
-
-``` r
-examiner_dates <- examiner_dates %>% 
-  mutate(start_date = ymd(filing_date), end_date = as_date(dmy_hms(appl_status_date)))
-```
 
 Let’s now identify the earliest and the latest date for each examiner
 and calculate the difference in days, which is their tenure in the
 organization.
-
-``` r
-examiner_dates <- examiner_dates %>% 
-  group_by(examiner_id) %>% 
-  summarise(
-    earliest_date = min(start_date, na.rm = TRUE), 
-    latest_date = max(end_date, na.rm = TRUE),
-    tenure_days = interval(earliest_date, latest_date) %/% days(1)
-    ) %>% 
-  filter(year(latest_date)<2018)
-#examiner_dates
-
-## plot tenure
-library(skimr)
-examiner_dates %>% 
-  select(earliest_date,latest_date,tenure_days) %>% 
-  skim()
-```
 
 |                                                  |            |
 |:-------------------------------------------------|:-----------|
@@ -297,27 +172,10 @@ Data summary
 
 Joining back to the applications data.
 
-``` r
-applications <- applications %>% 
-  left_join(examiner_dates, by = "examiner_id")
-#rm(examiner_dates)
-#gc()
-```
-
 ### Create application processing time variable
 
-``` r
-attach(applications)
-library(lubridate)
-
-# compute the final decision date as either abandon date or patent issue date
-application_dates <- applications %>% 
-    mutate(decision_date = coalesce(abandon_date,patent_issue_date)) %>%
-    select(application_number,filing_date, abandon_date, patent_issue_date, decision_date, examiner_id, examiner_art_unit, gender, race, tenure_days) %>%
-    filter(!is.na(decision_date))
-
-head(application_dates)
-```
+Compute the final decision date as either abandon date or patent issue
+date.
 
     ## # A tibble: 6 × 10
     ##   application_number filing_date abandon_date patent_issue_date decision_date
@@ -330,15 +188,6 @@ head(application_dates)
     ## 6 08687412           2000-04-28  NA           2001-07-31        2001-07-31   
     ## # … with 5 more variables: examiner_id <dbl>, examiner_art_unit <dbl>,
     ## #   gender <chr>, race <chr>, tenure_days <dbl>
-
-``` r
-# compute the application processing time as the difference of filing date and decision date
-application_dates <- application_dates %>% 
-    #mutate(app_proc_time = decision_date - filing_date)
-    mutate(app_proc_time = difftime(decision_date, filing_date, units = "days"))
-
-head(application_dates) #1,688,716 applications
-```
 
     ## # A tibble: 6 × 11
     ##   application_number filing_date abandon_date patent_issue_date decision_date
@@ -355,108 +204,13 @@ head(application_dates) #1,688,716 applications
 It seems some application processing time have negative value
 abnormally. Let’s take a look at the distribution.
 
-``` r
-# plot the data distribution of application processing time
-application_dates %>%
-  ggplot(aes(sample = as.numeric(app_proc_time))) +
-  geom_qq()
-```
-
 ![](final_report_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-``` r
-# filter out negative and outlying application processing time
-application_dates <- application_dates %>% 
-    filter(app_proc_time>ddays(0)) %>% 
-    filter(app_proc_time<ddays(10000))
-
-head(application_dates) #1,688,672 applications
-```
-
-    ## # A tibble: 6 × 11
-    ##   application_number filing_date abandon_date patent_issue_date decision_date
-    ##   <chr>              <date>      <date>       <date>            <date>       
-    ## 1 08284457           2000-01-26  NA           2003-02-18        2003-02-18   
-    ## 2 08413193           2000-10-11  NA           2002-08-27        2002-08-27   
-    ## 3 08637752           2001-07-20  NA           2005-08-09        2005-08-09   
-    ## 4 08682726           2000-04-10  2000-12-27   NA                2000-12-27   
-    ## 5 08687412           2000-04-28  NA           2001-07-31        2001-07-31   
-    ## 6 08765941           2000-06-23  2001-08-22   NA                2001-08-22   
-    ## # … with 6 more variables: examiner_id <dbl>, examiner_art_unit <dbl>,
-    ## #   gender <chr>, race <chr>, tenure_days <dbl>, app_proc_time <drtn>
-
-``` r
-# plot again the data distribution of application processing time after cleaning
-application_dates %>%
-  ggplot(aes(sample = as.numeric(app_proc_time))) +
-  geom_qq()
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
-
-Outliers are removed successfully.
+![](final_report_files/figure-gfm/unnamed-chunk-5-1.png)<!-- --> Filter
+out negative and outlying application processing time. Outliers are
+removed successfully.
 
 ### Get work group from art unit
-
-``` r
-# before we begin, get the workgroup from art unit as rounding down to digit tenth.
-application_dates <- application_dates %>%
-  mutate(wg = (application_dates$examiner_art_unit%/%10) * 10)
-
-# Find out which is the dominating workgroup an examiner handled the applications for.
-library(plyr)
-```
-
-    ## ------------------------------------------------------------------------------
-
-    ## You have loaded plyr after dplyr - this is likely to cause problems.
-    ## If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
-    ## library(plyr); library(dplyr)
-
-    ## ------------------------------------------------------------------------------
-
-    ## 
-    ## Attaching package: 'plyr'
-
-    ## The following objects are masked from 'package:dplyr':
-    ## 
-    ##     arrange, count, desc, failwith, id, mutate, rename, summarise,
-    ##     summarize
-
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     compact
-
-``` r
-library(dplyr)
-library(lubridate)
-application_dates <- mutate(
-  application_dates,
-  period = case_when(
-    filing_date<ymd("2007-01-01") ~ NA_character_,
-    filing_date<ymd("2008-01-01") ~ "t0",
-    filing_date<ymd("2009-01-01") ~ "t1",
-    filing_date<ymd("2010-01-01") ~ "t2",
-    filing_date<ymd("2011-01-01") ~ "t3",
-    filing_date<ymd("2012-01-01") ~ "t4",
-    filing_date<ymd("2013-01-01") ~ "t5",
-    filing_date<ymd("2014-01-01") ~ "t6",
-    filing_date<ymd("2015-01-01") ~ "t7",
-    filing_date<ymd("2016-01-01") ~ "t8",
-    TRUE~ NA_character_)
-  )
-
-# get number of applications
-library(plyr)
-examiner_wg_napp <- ddply(application_dates, .(examiner_id, period, wg), nrow)
-names(examiner_wg_napp) <- c("examiner_id","period", "wg", "n_applications")
-
-# assume an examiner belong to the wg he/she most frequently handled applications for, if tie take the greater wg
-examiner_wg_napp <- examiner_wg_napp[order(examiner_wg_napp$examiner_id, examiner_wg_napp$period, -(examiner_wg_napp$n_applications), -(examiner_wg_napp$wg)), ] ### sort first
-examiner_wg <- examiner_wg_napp [!duplicated(examiner_wg_napp[c(1,2)]),]
-examiner_wg <- select(examiner_wg, c("examiner_id","wg","period"))
-examiner_wg <- drop_na(examiner_wg)
-```
 
 ### Get seniority at each period
 
@@ -466,166 +220,15 @@ get senior examiners, according to our definition),
 *t*<sub>4</sub> = 2011, *t*<sub>5</sub> = 2012, *t*<sub>6</sub> = 2013,
 *t*<sub>7</sub> = 2014, *t*<sub>8</sub> = 2015
 
-``` r
-# Get tenure & state at each period
-examiner_dates <- examiner_dates %>% 
-  mutate(
-    tenure_t0 = ifelse(as.duration(earliest_date %--% ymd("2007-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2007-01-01"))/dyears(1)),
-    tenure_t1 = ifelse(as.duration(earliest_date %--% ymd("2008-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2008-01-01"))/dyears(1)),
-    tenure_t2 = ifelse(as.duration(earliest_date %--% ymd("2009-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2009-01-01"))/dyears(1)),
-    tenure_t3 = ifelse(as.duration(earliest_date %--% ymd("2010-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2010-01-01"))/dyears(1)),
-    tenure_t4 = ifelse(as.duration(earliest_date %--% ymd("2011-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2011-01-01"))/dyears(1)),
-    tenure_t5 = ifelse(as.duration(earliest_date %--% ymd("2012-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2012-01-01"))/dyears(1)),
-    tenure_t6 = ifelse(as.duration(earliest_date %--% ymd("2013-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2013-01-01"))/dyears(1)),
-    tenure_t7 = ifelse(as.duration(earliest_date %--% ymd("2014-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2014-01-01"))/dyears(1)),
-    tenure_t8 = ifelse(as.duration(earliest_date %--% ymd("2015-01-01")) / dyears(1)<0,0,as.duration(earliest_date %--% ymd("2015-01-01"))/dyears(1)),
-
-    t0_state = case_when(
-      tenure_t0<6 & tenure_t0>0 ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t0>=6              ~ "Senior"  , # Sr
-      TRUE                      ~ NA_character_ # not yet hired
-    ),
-    t1_state = case_when(
-      latest_date<ymd("2008-12-31")        ~ "Exit",
-      earliest_date>ymd("2007-01-01") 
-        & earliest_date<ymd("2008-01-01") ~ "New hire",
-      tenure_t1<6 & tenure_t1>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t1>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired
-      ),
-    t2_state = case_when(
-      t1_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2009-12-31")        ~ "Exit",
-      earliest_date>ymd("2008-01-01") 
-        & earliest_date<ymd("2009-01-01") ~ "New hire",
-      tenure_t2<6 & tenure_t2>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t2>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t3_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2010-12-31")        ~ "Exit",
-      earliest_date>ymd("2009-01-01") 
-        & earliest_date<ymd("2010-01-01") ~ "New hire",
-      tenure_t3<6 & tenure_t3>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t3>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t4_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2011-12-31")        ~ "Exit",
-      earliest_date>ymd("2010-01-01") 
-        & earliest_date<ymd("2011-01-01") ~ "New hire",
-      tenure_t4<6 & tenure_t4>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t4>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t5_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2012-12-31")        ~ "Exit",
-      earliest_date>ymd("2011-01-01") 
-        & earliest_date<ymd("2012-01-01") ~ "New hire",
-      tenure_t5<6 & tenure_t5>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t5>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t6_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2013-12-31")        ~ "Exit",
-      earliest_date>ymd("2012-01-01") 
-        & earliest_date<ymd("2013-01-01") ~ "New hire",
-      tenure_t6<6 & tenure_t6>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t6>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t7_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"|t6_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2014-12-31")        ~ "Exit",
-      earliest_date>ymd("2013-01-01") 
-        & earliest_date<ymd("2014-01-01") ~ "New hire",
-      tenure_t7<6 & tenure_t7>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t7>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      ),
-    t8_state = case_when(
-      t1_state=="Exit"|t2_state=="Exit"|t3_state=="Exit"|t4_state=="Exit"|t5_state=="Exit"|t6_state=="Exit"|t7_state=="Exit"                   ~ NA_character_,
-      latest_date<ymd("2015-12-31")        ~ "Exit",
-      earliest_date>ymd("2014-01-01") 
-        & earliest_date<ymd("2015-01-01") ~ "New hire",
-      tenure_t8<6 & tenure_t8>0          ~ "Junior"  , # Jr; not those yet to be hired!
-      tenure_t8>=6                       ~ "Senior"  , # Sr
-      TRUE                               ~ NA_character_ # not yet hired or already exit in previous period
-      )
-    )
-
-examiner_dates <- examiner_dates %>% 
-  select(examiner_id, t0_state, t1_state, t2_state, t3_state, t4_state, t5_state, t6_state, t7_state, t8_state)
-
-## plot seniority
-library(ggplot2)
-library(scales)  
-```
-
-    ## 
-    ## Attaching package: 'scales'
-
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     discard
-
-    ## The following object is masked from 'package:readr':
-    ## 
-    ##     col_factor
-
-``` r
-library(gridExtra)
-```
-
-    ## 
-    ## Attaching package: 'gridExtra'
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     combine
-
-``` r
-plot1 <- ggplot(examiner_dates, aes(factor(t1_state, levels = c("New hire", "Junior", "Senior", "Exit", NA)))) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") +
-          ggtitle("Seniority distribution for USPTO at t1")
-plot1
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](final_report_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 Joining back to the applications dates data.
 
-``` r
-application_dates <- application_dates %>% 
-  left_join(examiner_dates, by = "examiner_id")
-#gc()
-```
-
 ### Generate examiner panel dataset
 
-``` r
-# compute average application processing time
-
-cols <- c("examiner_id","period", "wg", "examiner_art_unit","gender", "race", "tenure_days",
-          "t0_state","t1_state","t2_state","t3_state","t4_state","t5_state","t6_state","t7_state","t8_state")
-
-examiners <- application_dates %>%
-    group_by(across(all_of(cols))) %>%
-    dplyr::summarize(mean_app_proc_time = mean(app_proc_time, na.rm=TRUE), n_app = n()) %>%
-    drop_na()
-```
+Compute average application processing time
 
     ## `summarise()` has grouped output by 'examiner_id', 'period', 'wg', 'examiner_art_unit', 'gender', 'race', 'tenure_days', 't0_state', 't1_state', 't2_state', 't3_state', 't4_state', 't5_state', 't6_state', 't7_state'. You can override using the `.groups` argument.
-
-``` r
-head(data.frame(examiners))
-```
 
     ##   examiner_id period   wg examiner_art_unit gender  race tenure_days t0_state
     ## 1       59012     t0 1710              1716   male white        4013   Junior
@@ -651,18 +254,6 @@ head(data.frame(examiners))
 
 #### Create panel dataset of examiners for analysis
 
-``` r
-# subset examiners for time period t1 for our analysis, as advice dates are all in 2008 
-examiner_aus <- data.frame(examiners) %>%
-    filter(period == "t1") %>% 
-    #filter(wg == 2450 | wg == 2480) %>%
-    select(wg, examiner_art_unit, examiner_id, gender, race, t1_state, tenure_days, mean_app_proc_time, n_app) %>%
-    distinct(examiner_id, .keep_all=TRUE) %>% 
-    drop_na() 
-
-head(examiner_aus) #2591
-```
-
     ##     wg examiner_art_unit examiner_id gender  race t1_state tenure_days
     ## 1 1710              1716       59012   male white   Junior        4013
     ## 2 2120              2124       59056   male asian   Senior        6268
@@ -680,62 +271,6 @@ head(examiner_aus) #2591
 
 ### Compute centrality of examiners
 
-``` r
-# separate from edges examiners seek and give advice
-edges_aus <- edges %>%
-  filter(ego_examiner_id %in% examiner_aus$examiner_id) %>%
-  filter(alter_examiner_id %in% examiner_aus$examiner_id) %>%
-  drop_na() #8824
-
-# merge work group information
-network <- left_join(edges_aus, examiner_aus, by = c("ego_examiner_id" = "examiner_id"))
-colnames(network)[5] <- "ego_examiner_wg"
-colnames(network)[6] <- "ego_examiner_au"
-colnames(network)[7] <- "ego_examiner_gender"
-colnames(network)[8] <- "ego_examiner_race"
-colnames(network)[9] <- "ego_examiner_t1_state"
-colnames(network)[10] <- "ego_examiner_tenure"
-colnames(network)[11] <- "ego_examiner_appprooctime"
-colnames(network)[12] <- "ego_examiner_napp"
-#network <- subset(network, select = -c(period))
-network <- left_join(network, examiner_aus, by = c("alter_examiner_id" = "examiner_id"))
-colnames(network)[13] <- "alter_examiner_wg"
-colnames(network)[14] <- "alter_examiner_au"
-colnames(network)[15] <- "alter_examiner_gender"
-colnames(network)[16] <- "alter_examiner_race"
-colnames(network)[17] <- "alter_examiner_t1_state"
-#colnames(network)[18] <- "alter_examiner_tenure"
-colnames(network)[19] <- "alter_examiner_appprooctime"
-colnames(network)[20] <- "alter_examiner_napp"
-#network <- subset(network, select = -c(period))
-
-head(network)
-```
-
-    ## # A tibble: 6 × 20
-    ##   application_number advice_date ego_examiner_id alter_examiner_… ego_examiner_wg
-    ##   <chr>              <date>                <dbl>            <dbl>           <dbl>
-    ## 1 09402488           2008-11-17            84356            63519            1650
-    ## 2 09445135           2008-08-21            92953            91818            2420
-    ## 3 09484331           2008-02-07            72253            61519            1630
-    ## 4 09484331           2008-02-07            72253            72253            1630
-    ## 5 09489652           2008-01-10            67078            75772            2190
-    ## 6 09489652           2008-01-10            67078            97328            2190
-    ## # … with 15 more variables: ego_examiner_au <dbl>, ego_examiner_gender <chr>,
-    ## #   ego_examiner_race <chr>, ego_examiner_t1_state <chr>,
-    ## #   ego_examiner_tenure <dbl>, ego_examiner_appprooctime <drtn>,
-    ## #   ego_examiner_napp <int>, alter_examiner_wg <dbl>, alter_examiner_au <dbl>,
-    ## #   alter_examiner_gender <chr>, alter_examiner_race <chr>,
-    ## #   alter_examiner_t1_state <chr>, tenure_days <dbl>,
-    ## #   alter_examiner_appprooctime <drtn>, alter_examiner_napp <int>
-
-``` r
-# Visualize the advice seeking volume by examiner seniority in period t1
-  network %>% 
-  group_by(ego_examiner_t1_state, alter_examiner_t1_state) %>% 
-  dplyr::summarise(count = n())
-```
-
     ## `summarise()` has grouped output by 'ego_examiner_t1_state'. You can override using the `.groups` argument.
 
     ## # A tibble: 4 × 3
@@ -751,138 +286,7 @@ There are more junior seeking advice from senior than peer advice
 seeking (junior to junior, senior to senior). It is the fewest for
 senior to seek advice from junior.
 
-``` r
-# create edge list
-edge_list <- select(network, c("ego_examiner_id","alter_examiner_id")) #8824
-
-# create node list
-ego <- select(network, c("ego_examiner_id","ego_examiner_wg")) %>%
-    dplyr::rename(id=ego_examiner_id, wg=ego_examiner_wg)
-alter <- select(network, c("alter_examiner_id","alter_examiner_wg")) %>%
-    dplyr::rename(id=alter_examiner_id, wg=alter_examiner_wg)
-nodes <- rbind(ego, alter) %>%
-  select(id) %>%
-  distinct() %>%
-  drop_na() #1447
-
-# create advice net
-library(igraph)
-```
-
-    ## 
-    ## Attaching package: 'igraph'
-
-    ## The following objects are masked from 'package:lubridate':
-    ## 
-    ##     %--%, union
-
-    ## The following objects are masked from 'package:dplyr':
-    ## 
-    ##     as_data_frame, groups, union
-
-    ## The following objects are masked from 'package:purrr':
-    ## 
-    ##     compose, simplify
-
-    ## The following object is masked from 'package:tidyr':
-    ## 
-    ##     crossing
-
-    ## The following object is masked from 'package:tibble':
-    ## 
-    ##     as_data_frame
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     decompose, spectrum
-
-    ## The following object is masked from 'package:base':
-    ## 
-    ##     union
-
-``` r
-advice_net = graph_from_data_frame(d=edge_list, vertices=nodes, directed=TRUE)
-```
-
-``` r
-# calculate Degree Centrality, a measure for a node in a network is just its degree, the number of edges connected to it. 
-V(advice_net)$dc <- degree(advice_net)
-# calculate Betweenness Centrality, which measures the extent to which a node lies on paths between other nodes.
-V(advice_net)$bc <- betweenness(advice_net)
-# calculate Eigenvector Centrality, which awards a number of points proportional to the centrality scores of the neighbors
-V(advice_net)$ec <- evcent(advice_net)$vector
-V(advice_net)$cc <- closeness(advice_net) # dropped since closeness centrality is not well-defined for disconnected graphs
-```
-
-    ## Warning in closeness(advice_net): At centrality.c:2874 :closeness centrality is
-    ## not well-defined for disconnected graphs
-
-``` r
-# combine the centrality scores
-centrality <- data.frame(cbind(nodes$id, V(advice_net)$dc, V(advice_net)$bc, V(advice_net)$ec, V(advice_net)$cc)) 
-colnames(centrality)[1] <- "examiner_id"
-colnames(centrality)[2] <- "degree_centrality"
-colnames(centrality)[3] <- "betweenness_centrality"
-colnames(centrality)[4] <- "eigenvector_centrality"
-colnames(centrality)[5] <- "closeness_centrality"
-head(centrality)
-```
-
-    ##   examiner_id degree_centrality betweenness_centrality eigenvector_centrality
-    ## 1       84356                17             22.0000000           3.117146e-10
-    ## 2       92953                 1              0.0000000           5.316361e-18
-    ## 3       72253                28             94.0000000           7.153525e-11
-    ## 4       67078                 2              0.0000000           1.177571e-08
-    ## 5       91688                12              0.7936508           5.901232e-10
-    ## 6       61797                25              0.0000000           4.146497e-07
-    ##   closeness_centrality
-    ## 1         4.802518e-07
-    ## 2         4.785900e-07
-    ## 3         4.795848e-07
-    ## 4         4.795853e-07
-    ## 5         4.782593e-07
-    ## 6         5.569789e-07
-
-``` r
-# merge centrality to examiners
-examiner_joined <- left_join(examiner_aus, centrality, by = c("examiner_id" = "examiner_id"))
-examiner_joined <- examiner_joined %>%
-  drop_na(degree_centrality)
-head(examiner_joined) #1447
-```
-
-    ##     wg examiner_art_unit examiner_id gender  race t1_state tenure_days
-    ## 1 2120              2124       59056   male asian   Senior        6268
-    ## 2 2160              2169       59141 female asian   Junior        4582
-    ## 3 2160              2162       59181 female black   Senior        6331
-    ## 4 1640              1644       59211   male white   Senior        6332
-    ## 5 1730              1734       59227 female white   Senior        6349
-    ## 6 1650              1652       59236 female white   Senior        6331
-    ##   mean_app_proc_time n_app degree_centrality betweenness_centrality
-    ## 1      1445.500 days     2                 9                      0
-    ## 2      1839.556 days    18                 7                      0
-    ## 3      1324.604 days    53                17                      0
-    ## 4      1044.125 days    56                21                      1
-    ## 5      1270.418 days    91                 4                      0
-    ## 6      1369.680 days    50                 2                      0
-    ##   eigenvector_centrality closeness_centrality
-    ## 1           1.951991e-07         4.779288e-07
-    ## 2           1.221788e-06         4.785903e-07
-    ## 3           6.445086e-05         4.779288e-07
-    ## 4           2.212934e-10         4.782593e-07
-    ## 5           5.042986e-13         4.779288e-07
-    ## 6           4.941853e-12         4.779288e-07
-
 ### Work groups selection (applicable for analysis zoom-in)
-
-``` r
-# select the workgroups under the same technology centre with most examiners at t1 for our analysis, as advice dates are all in 2008
-examiner_joined %>% 
-  #dplyr::filter(period == "t1") %>% 
-  count("wg") %>% 
-  arrange(desc(freq)) %>%
-  head(4)
-```
 
     ##     wg freq
     ## 1 2440   84
@@ -893,29 +297,11 @@ examiner_joined %>%
 Hence, we’re selecting work groups 1780 and 1770 under the same
 technology centre 1700 for further analysis.
 
-``` r
-examiner_joined_1780 = examiner_joined[examiner_joined$wg==1780,]
-examiner_joined_1770 = examiner_joined[examiner_joined$wg==1770,]
-
-examiner_joined_2wg <- examiner_joined %>%
-  filter(wg == 1780 | wg == 1770)
-```
-
 ### 3.1 Organization and social factors associated with the length of patent application prosecution
 
 Before we begin, let’s take a look at the distribution of application
 processing time for the selected examiners.
-
-``` r
-# plot the data distribution of application processing time
-plot1 <- examiner_joined %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for USPTO") + ylim(0,3500)
-plot2 <- examiner_joined_2wg %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 2wg") + ylim(0,3500)
-plot3 <- examiner_joined_1780 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1780") + ylim(0,3500)
-plot4 <- examiner_joined_1770 %>% ggplot(aes(sample = as.numeric(mean_app_proc_time))) + geom_qq() + labs(title="App Proc Time for 1770") + ylim(0,3500)
-grid.arrange(plot1,plot2,plot3,plot4, ncol=2, widths=c(1,1))
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](final_report_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 We can see that the two selected work groups under the same technology
 centre have lower application processing time than USTPO company as a
@@ -928,21 +314,7 @@ the data limitation shall be acknowledged.
 Also we would like to understand the network for the two selected work
 groups.
 
-``` r
-nodes <- left_join(nodes, examiner_joined, by = c("id" = "examiner_id")) %>% select(id,wg,examiner_art_unit)
-nodes_2wg <- nodes %>% filter(wg == 1780 | wg == 1770)
-edge_list_2wg <- edge_list %>% filter(ego_examiner_id %in% nodes_2wg$id) %>% filter(alter_examiner_id %in% nodes_2wg$id)
-advice_net_2wg = graph_from_data_frame(d=edge_list_2wg, vertices=nodes_2wg, directed=TRUE)
-
-V(advice_net_2wg)$dc <- degree(advice_net_2wg)
-
-library(ggraph)
-ggraph(advice_net_2wg, layout="kk") +
-  geom_edge_link()+
-  geom_node_point(aes(size=dc, color=nodes_2wg$examiner_art_unit), show.legend=T)
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](final_report_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 #### 3.1.1 Impacts of centrality
 
@@ -955,26 +327,12 @@ Firstly, we run 4 linear regression models on organizational level to
 understand the effect of each centrality measure to the application
 process time separately.
 
-``` r
-#install.packages("stargazer")
-library(stargazer)
-```
-
     ## 
     ## Please cite as:
 
     ##  Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
 
     ##  R package version 5.2.2. https://CRAN.R-project.org/package=stargazer
-
-``` r
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined)
-
-stargazer(reg1,reg2,reg3,reg4,type="text", title="Impacts of Each Centrality Measure to Application Processing Time (USPTO level)")
-```
 
     ## 
     ## Impacts of Each Centrality Measure to Application Processing Time (USPTO level)
@@ -1031,16 +389,7 @@ Now, let’s take a look at the correlation of the 4 centrality measures
 and run a regression to understand the effect of the centrality measure
 to the application process time together.
 
-``` r
-library(ggcorrplot)
-quantvars <- examiner_joined %>% select(mean_app_proc_time, tenure_days, n_app, degree_centrality, betweenness_centrality, eigenvector_centrality, closeness_centrality)
-quantvars$mean_app_proc_time = as.numeric(quantvars$mean_app_proc_time)
-# populating correlation matrix
-corr_matrix = cor(quantvars)
-ggcorrplot(corr_matrix)
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-22-1.png)<!-- --> From
+![](final_report_files/figure-gfm/unnamed-chunk-25-1.png)<!-- --> From
 the correlation matrix we can see that the target variable
 app\_proc\_time has no strong correlation with other numeric variables.
 The centrality measures have strong correlation with each other -
@@ -1053,11 +402,6 @@ observed consistent results - an increase in degree centrality and
 betweenness centrality reduces application processing time while an in
 crease in eigenvector centrality and closeness centrality increases
 application processing time.
-
-``` r
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (USPTO level)")
-```
 
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (USPTO level)
@@ -1092,15 +436,6 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## Note:                                                                                                  *p<0.1; **p<0.05; ***p<0.01
 
 Next, we will repeat the steps for the two selected work groups.
-
-``` r
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg)
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level)")
-```
 
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level)
@@ -1170,19 +505,6 @@ on top and evaluate if there is different level of impacts. We will
 focus on the 2 work groups 1780 and 1770 shortlisted and begin with
 examiner’s gender in t1 period.
 
-``` r
-# male
-examiner_joined_2wg_m <- examiner_joined_2wg %>%
-  filter(gender == "male")
-
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg_m)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg_m)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg_m)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg_m)
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg_m)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, male)")
-```
-
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, male)
     ## ========================================================================================================================
@@ -1197,10 +519,10 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                          0.684                                                       0.859       
     ##                                                (1.182)                                                     (1.194)      
     ##                                                                                                                         
-    ## eigenvector_centrality                                       -2,174,175,763.000                      -1,507,154,664.000 
-    ##                                                              (2,231,984,950.000)                     (2,345,267,959.000)
+    ## eigenvector_centrality                                       -2,174,175,763.000                      -1,507,154,670.000 
+    ##                                                              (2,231,984,954.000)                     (2,345,267,960.000)
     ##                                                                                                                         
-    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,635.000  
+    ## closeness_centrality                                                             -1,310,550,071.000   -388,030,633.000  
     ##                                                                                  (2,256,989,357.000) (2,349,671,706.000)
     ##                                                                                                                         
     ## Constant                  1,289.814***       1,261.027***       1,273.747***         1,897.334*           1,473.949     
@@ -1214,19 +536,6 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## F Statistic            1.931 (df = 1; 93) 0.334 (df = 1; 93) 0.949 (df = 1; 93)  0.337 (df = 1; 93)  0.705 (df = 4; 90) 
     ## ========================================================================================================================
     ## Note:                                                                                        *p<0.1; **p<0.05; ***p<0.01
-
-``` r
-# female
-examiner_joined_2wg_f <- examiner_joined_2wg %>%
-  filter(gender == "female")
-
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality,data=examiner_joined_2wg_f)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality,data=examiner_joined_2wg_f)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality,data=examiner_joined_2wg_f)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality,data=examiner_joined_2wg_f)
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality,data=examiner_joined_2wg_f)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, female)")
-```
 
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (2wg level, female)
@@ -1279,59 +588,16 @@ characteristics of examiner that might influence the relationship, let’s
 take a look at the distribution of gender on company level and work
 group level.
 
-``` r
-library(ggplot2)
-library(scales)  
-library(gridExtra)
-
-plot1 <- ggplot(examiner_joined, aes(gender)) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") + ylim(0,1) +
-          ggtitle("Gender distribution for USPTO")
-```
-
+    ## Scale for 'y' is already present. Adding another scale for 'y', which will
+    ## replace the existing scale.
+    ## Scale for 'y' is already present. Adding another scale for 'y', which will
+    ## replace the existing scale.
+    ## Scale for 'y' is already present. Adding another scale for 'y', which will
+    ## replace the existing scale.
     ## Scale for 'y' is already present. Adding another scale for 'y', which will
     ## replace the existing scale.
 
-``` r
-plot2 <- ggplot(examiner_joined_2wg, aes(gender)) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") + ylim(0,1) +
-          ggtitle("Gender distribution for 2wg")
-```
-
-    ## Scale for 'y' is already present. Adding another scale for 'y', which will
-    ## replace the existing scale.
-
-``` r
-plot3 <- ggplot(examiner_joined_1780, aes(gender)) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") + ylim(0,1) +
-          ggtitle("Gender distribution for 1780")
-```
-
-    ## Scale for 'y' is already present. Adding another scale for 'y', which will
-    ## replace the existing scale.
-
-``` r
-plot4 <- ggplot(examiner_joined_1770, aes(gender)) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") + ylim(0,1) +
-          ggtitle("Gender distribution for 1770")
-```
-
-    ## Scale for 'y' is already present. Adding another scale for 'y', which will
-    ## replace the existing scale.
-
-``` r
-grid.arrange(plot1,plot2,plot3,plot4,ncol=2, widths=c(1,1))
-```
-
-![](final_report_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](final_report_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 It is observed that there is systematic bias in gender for USPTO and
 selected work groups that there are more male examiners than female.
@@ -1342,16 +608,6 @@ taken into consideration in the formulation of regression overall.
 Let’s repeat running the regression with interaction terms of gender and
 centrality. This time we’re going to take a more micro-view per each of
 the selected work groups as their gender distributions are so different.
-
-``` r
-# 1780, gender x centrality
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality+as.factor(gender)+degree_centrality*as.factor(gender),data=examiner_joined_1780)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality+as.factor(gender)+betweenness_centrality*as.factor(gender),data=examiner_joined_1780)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality+as.factor(gender)+eigenvector_centrality*as.factor(gender),data=examiner_joined_1780)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality+as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1780)
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality+as.factor(gender)+degree_centrality*as.factor(gender)+betweenness_centrality*as.factor(gender)+eigenvector_centrality*as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1780)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (1780 wg level, centrality x gender)")
-```
 
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (1780 wg level, centrality x gender)
@@ -1382,11 +638,11 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                         13.354**                                                    13.349**      
     ##                                                                       (5.960)                                                     (6.291)      
     ##                                                                                                                                                
-    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,818.000                       1,923,445,229.000 
-    ##                                                                                     (5,006,380,956.000)                     (7,685,871,715.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        -4,060,405,843.000                       1,923,445,209.000 
+    ##                                                                                     (5,006,380,986.000)                     (7,685,871,745.000)
     ##                                                                                                                                                
-    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,926.000 
-    ##                                                                                                         (4,273,146,757.000) (5,010,232,176.000)
+    ## closeness_centrality:as.factor(gender)male                                                               2,185,261,518.000   3,245,876,917.000 
+    ##                                                                                                         (4,273,146,757.000) (5,010,232,173.000)
     ##                                                                                                                                                
     ## Constant                                        1,339.215***       1,373.178***        1,317.188***          2,427.751           1,815.083     
     ##                                                   (80.164)           (68.066)            (64.610)           (1,473.418)         (1,627.677)    
@@ -1414,16 +670,6 @@ supports the robustness of our above finding per gender that male
 examiners are more good at building cohesive network while female
 examiners are more good at bridging network.
 
-``` r
-# 1770, gender x centrality
-reg1 = lm(as.numeric(mean_app_proc_time)~degree_centrality+as.factor(gender)+degree_centrality*as.factor(gender),data=examiner_joined_1770)
-reg2 = lm(as.numeric(mean_app_proc_time)~betweenness_centrality+as.factor(gender)+betweenness_centrality*as.factor(gender),data=examiner_joined_1770)
-reg3 = lm(as.numeric(mean_app_proc_time)~eigenvector_centrality+as.factor(gender)+eigenvector_centrality*as.factor(gender),data=examiner_joined_1770)
-reg4 = lm(as.numeric(mean_app_proc_time)~closeness_centrality+as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1770)
-reg5 = lm(as.numeric(mean_app_proc_time)~degree_centrality+betweenness_centrality+eigenvector_centrality+closeness_centrality+as.factor(gender)+degree_centrality*as.factor(gender)+betweenness_centrality*as.factor(gender)+eigenvector_centrality*as.factor(gender)+closeness_centrality*as.factor(gender),data=examiner_joined_1770)
-stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Measure Separately and Combined to Application Processing Time (1770 wg level, centrality x gender)")
-```
-
     ## 
     ## Impacts of Centrality Measure Separately and Combined to Application Processing Time (1770 wg level, centrality x gender)
     ## ===================================================================================================================================================
@@ -1438,13 +684,13 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality                                                -0.439                                                         -1.255        
     ##                                                                      (2.057)                                                         (4.496)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality                                                              -48,691,639,632.000                        122,650,066,656.000 
-    ##                                                                                    (298,629,791,390.000)                      (656,665,418,710.000)
+    ## eigenvector_centrality                                                              -48,691,658,828.000                        122,649,961,465.000 
+    ##                                                                                    (298,629,786,168.000)                      (656,665,395,524.000)
     ##                                                                                                                                                    
-    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,591,729.000  
-    ##                                                                                                          (47,488,018,473.000) (50,501,007,229.000) 
+    ## closeness_centrality                                                                                       -668,763,612.000    -3,166,592,296.000  
+    ##                                                                                                          (47,488,018,473.000) (50,501,007,694.000) 
     ##                                                                                                                                                    
-    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.340       
+    ## as.factor(gender)male                             -96.222            -68.288              -71.332             1,176.078             -274.341       
     ##                                                  (112.294)          (104.892)            (108.328)           (22,841.610)         (24,305.100)     
     ##                                                                                                                                                    
     ## degree_centrality:as.factor(gender)male            1.652                                                                              2.003        
@@ -1453,11 +699,11 @@ stargazer(reg1,reg2,reg3,reg4,reg5,type="text", title="Impacts of Centrality Mea
     ## betweenness_centrality:as.factor(gender)male                          -2.443                                                         -1.524        
     ##                                                                      (5.508)                                                         (6.972)       
     ##                                                                                                                                                    
-    ## eigenvector_centrality:as.factor(gender)male                                        47,059,336,982.000                        -123,737,537,711.000 
-    ##                                                                                    (298,641,597,145.000)                      (656,671,745,897.000)
+    ## eigenvector_centrality:as.factor(gender)male                                        47,059,356,177.000                        -123,737,432,522.000 
+    ##                                                                                    (298,641,591,923.000)                      (656,671,722,712.000)
     ##                                                                                                                                                    
-    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,146,018.000   
-    ##                                                                                                          (47,676,905,724.000) (50,710,133,115.000) 
+    ## closeness_centrality:as.factor(gender)male                                                                -2,590,487,171.000     399,146,585.000   
+    ##                                                                                                          (47,676,905,724.000) (50,710,133,578.000) 
     ##                                                                                                                                                    
     ## Constant                                        1,410.319***       1,387.850***        1,388.340***           1,701.823             2,931.854      
     ##                                                   (98.811)           (91.403)            (96.110)            (22,750.360)         (24,204.380)     
@@ -1500,39 +746,6 @@ period.
 Firstly, We fit a linear regression between the mean application
 processing time and the centralities for all junior examiners.
 
-``` r
-examiner_joined_2wg$t1_state <- as.factor(examiner_joined_2wg$t1_state)
-
-examiner_joined_2wg_junior <- examiner_joined_2wg %>%
-  filter(t1_state == "Junior")
-
-seniority_junior_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_junior)
-
-summary(seniority_junior_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_junior)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -795.89 -138.41   21.43  126.02 1184.75 
-    ## 
-    ## Coefficients:
-    ##                          Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)             2.069e+03  1.386e+03   1.493    0.143
-    ## degree_centrality      -2.761e+00  2.509e+00  -1.101    0.277
-    ## betweenness_centrality -8.628e+00  1.358e+01  -0.635    0.529
-    ## eigenvector_centrality -1.107e+09  3.012e+09  -0.368    0.715
-    ## closeness_centrality   -1.324e+09  2.885e+09  -0.459    0.649
-    ## 
-    ## Residual standard error: 376.6 on 42 degrees of freedom
-    ## Multiple R-squared:  0.06823,    Adjusted R-squared:  -0.02051 
-    ## F-statistic: 0.7689 on 4 and 42 DF,  p-value: 0.5516
-
 Based on the summary, for junior examiners, an increase of 1 unit of
 degree centrality, betweenness centrality, and eigen vector centrality,
 means a decrease of process time by 2.76 days, 8.63 days and 1.32e+98
@@ -1543,37 +756,6 @@ of the coefficients are not statistically significant.
 
 Then, we fit the similar linear regression based on data points from
 senior examiners to see if seniority impose some impacts.
-
-``` r
-examiner_joined_2wg_senior <- examiner_joined_2wg %>%
-  filter(t1_state == "Senior")
-
-seniority_senior_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_senior)
-
-summary(seniority_senior_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_senior)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -859.07 -200.18  -14.23  132.07 1125.96 
-    ## 
-    ## Coefficients:
-    ##                          Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)             2.059e+03  1.464e+03   1.406    0.163
-    ## degree_centrality      -1.381e+00  1.904e+00  -0.725    0.470
-    ## betweenness_centrality  5.436e-01  1.054e+00   0.516    0.607
-    ## eigenvector_centrality -3.689e+05  2.689e+06  -0.137    0.891
-    ## closeness_centrality   -1.667e+09  3.045e+09  -0.548    0.585
-    ## 
-    ## Residual standard error: 347.5 on 93 degrees of freedom
-    ## Multiple R-squared:  0.01074,    Adjusted R-squared:  -0.03181 
-    ## F-statistic: 0.2523 on 4 and 93 DF,  p-value: 0.9076
 
 Different from the juniors, for senior examiners, an increase of 1 unit
 of degree centrality and eigen vector centrality means a decrease of
@@ -1587,38 +769,52 @@ coefficients are not statistically significant.
 In the next model, we include seniority as interaction term for each of
 the centrality predictors.
 
-``` r
-seniority_reg = lm(as.numeric(mean_app_proc_time) ~ t1_state*degree_centrality + t1_state*betweenness_centrality + t1_state*eigenvector_centrality + t1_state*closeness_centrality, data=examiner_joined_2wg)
-
-summary(seniority_reg)
-```
-
     ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ t1_state * degree_centrality + 
-    ##     t1_state * betweenness_centrality + t1_state * eigenvector_centrality + 
-    ##     t1_state * closeness_centrality, data = examiner_joined_2wg)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -859.07 -184.69    1.18  132.76 1184.75 
-    ## 
-    ## Coefficients:
-    ##                                         Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)                            2.069e+03  1.313e+03   1.576    0.117
-    ## t1_stateSenior                        -9.602e+00  1.996e+03  -0.005    0.996
-    ## degree_centrality                     -2.761e+00  2.377e+00  -1.162    0.247
-    ## betweenness_centrality                -8.628e+00  1.286e+01  -0.671    0.504
-    ## eigenvector_centrality                -1.107e+09  2.854e+09  -0.388    0.699
-    ## closeness_centrality                  -1.324e+09  2.733e+09  -0.485    0.629
-    ## t1_stateSenior:degree_centrality       1.380e+00  3.078e+00   0.448    0.655
-    ## t1_stateSenior:betweenness_centrality  9.171e+00  1.291e+01   0.710    0.479
-    ## t1_stateSenior:eigenvector_centrality  1.107e+09  2.854e+09   0.388    0.699
-    ## t1_stateSenior:closeness_centrality   -3.433e+08  4.153e+09  -0.083    0.934
-    ## 
-    ## Residual standard error: 356.8 on 135 degrees of freedom
-    ## Multiple R-squared:  0.05991,    Adjusted R-squared:  -0.002761 
-    ## F-statistic: 0.9559 on 9 and 135 DF,  p-value: 0.4794
+    ## Impacts of Seniority to Application Processing Time
+    ## =================================================================================================
+    ##                                                           Dependent variable:                    
+    ##                                       -----------------------------------------------------------
+    ##                                                     as.numeric(mean_app_proc_time)               
+    ##                                               (1)                 (2)                 (3)        
+    ## -------------------------------------------------------------------------------------------------
+    ## t1_stateSenior                                                                      -9.602       
+    ##                                                                                   (1,995.795)    
+    ##                                                                                                  
+    ## degree_centrality                           -2.761              -1.381              -2.761       
+    ##                                             (2.509)             (1.904)             (2.377)      
+    ##                                                                                                  
+    ## betweenness_centrality                      -8.628               0.544              -8.628       
+    ##                                            (13.578)             (1.055)            (12.864)      
+    ##                                                                                                  
+    ## eigenvector_centrality                -1,107,117,631.000     -368,935.000     -1,107,117,631.000 
+    ##                                       (3,012,160,700.000)   (2,689,044.000)   (2,853,691,116.000)
+    ##                                                                                                  
+    ## closeness_centrality                  -1,324,153,448.000  -1,667,472,201.000  -1,324,153,448.000 
+    ##                                       (2,884,571,627.000) (3,044,851,915.000) (2,732,814,496.000)
+    ##                                                                                                  
+    ## t1_stateSenior:degree_centrality                                                     1.380       
+    ##                                                                                     (3.078)      
+    ##                                                                                                  
+    ## t1_stateSenior:betweenness_centrality                                                9.171       
+    ##                                                                                    (12.909)      
+    ##                                                                                                  
+    ## t1_stateSenior:eigenvector_centrality                                          1,106,748,696.000 
+    ##                                                                               (2,853,692,452.000)
+    ##                                                                                                  
+    ## t1_stateSenior:closeness_centrality                                            -343,318,753.000  
+    ##                                                                               (4,152,505,479.000)
+    ##                                                                                                  
+    ## Constant                                   2,068.548           2,058.946           2,068.548     
+    ##                                           (1,385.821)         (1,463.893)         (1,312.913)    
+    ##                                                                                                  
+    ## -------------------------------------------------------------------------------------------------
+    ## Observations                                  47                  98                  145        
+    ## R2                                           0.068               0.011               0.060       
+    ## Adjusted R2                                 -0.021              -0.032              -0.003       
+    ## Residual Std. Error                    376.629 (df = 42)   347.496 (df = 93)  356.815 (df = 135) 
+    ## F Statistic                           0.769 (df = 4; 42)  0.252 (df = 4; 93)  0.956 (df = 9; 135)
+    ## =================================================================================================
+    ## Note:                                                                 *p<0.1; **p<0.05; ***p<0.01
 
 According to this model, a junior examiner usually process applications
 9.60 days longer than a senior examiner. Also, the same as the previous
@@ -1632,36 +828,37 @@ days compared to juniors.
 
 #### 3.1.3 Impacts of examiners’ race and ethnicity
 
-``` r
-# asian
-examiner_joined_2wg_asian <- examiner_joined_2wg %>% filter(race == "asian")
-
-asian_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_asian)
-
-summary(asian_reg)
-```
-
     ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_asian)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -444.16 -140.68   -5.48  168.26  608.14 
-    ## 
-    ## Coefficients:
-    ##                          Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)             1.728e+03  1.808e+03   0.955    0.350
-    ## degree_centrality       2.470e+00  1.156e+01   0.214    0.833
-    ## betweenness_centrality -6.853e-01  6.898e+00  -0.099    0.922
-    ## eigenvector_centrality -7.539e+05  2.331e+06  -0.323    0.749
-    ## closeness_centrality   -9.896e+08  3.751e+09  -0.264    0.794
-    ## 
-    ## Residual standard error: 269.6 on 22 degrees of freedom
-    ## Multiple R-squared:  0.01033,    Adjusted R-squared:  -0.1696 
-    ## F-statistic: 0.05743 on 4 and 22 DF,  p-value: 0.9934
+    ## Impacts of Race to Application Processing Time
+    ## ==========================================================================================
+    ##                                                Dependent variable:                        
+    ##                        -------------------------------------------------------------------
+    ##                                          as.numeric(mean_app_proc_time)                   
+    ##                                (1)            (2)       (3)      (4)           (5)        
+    ## ------------------------------------------------------------------------------------------
+    ## degree_centrality             2.470         27.216                           -2.206       
+    ##                             (11.563)                                         (1.586)      
+    ##                                                                                           
+    ## betweenness_centrality       -0.685                                           0.116       
+    ##                              (6.898)                                         (1.130)      
+    ##                                                                                           
+    ## eigenvector_centrality    -753,913.300                                  -166,134,831.000  
+    ##                          (2,331,264.000)                                (182,578,152.000) 
+    ##                                                                                           
+    ## closeness_centrality    -989,640,401.000                                -899,423,122.000  
+    ##                        (3,750,979,097.000)                             (2,246,032,850.000)
+    ##                                                                                           
+    ## Constant                    1,727.745      1,441.996 1,839.000 636.000      1,758.653     
+    ##                            (1,808.341)                                     (1,079.066)    
+    ##                                                                                           
+    ## ------------------------------------------------------------------------------------------
+    ## Observations                   27              2         1        1            114        
+    ## R2                            0.010          1.000     0.000    0.000         0.031       
+    ## Adjusted R2                  -0.170                    0.000    0.000        -0.005       
+    ## Residual Std. Error     269.603 (df = 22)                              374.716 (df = 109) 
+    ## F Statistic            0.057 (df = 4; 22)                              0.859 (df = 4; 109)
+    ## ==========================================================================================
+    ## Note:                                                          *p<0.1; **p<0.05; ***p<0.01
 
 Adding one more unit in degree centrality subtracts, on average, an
 asian’s mean application processing time by 5.4 days, if holding
@@ -1669,132 +866,11 @@ everything else equal. Adding one more unit in betweenness centrality
 subtracts, on average, an asian’s mean application processing time by
 4.7 days, if holding everything else equal.
 
-``` r
-# black
-examiner_joined_2wg_black <- examiner_joined_2wg %>% filter(race == "black")
-
-black_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_black)
-
-summary(black_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_black)
-    ## 
-    ## Residuals:
-    ## ALL 2 residuals are 0: no residual degrees of freedom!
-    ## 
-    ## Coefficients: (3 not defined because of singularities)
-    ##                        Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)             1442.00        NaN     NaN      NaN
-    ## degree_centrality         27.22        NaN     NaN      NaN
-    ## betweenness_centrality       NA         NA      NA       NA
-    ## eigenvector_centrality       NA         NA      NA       NA
-    ## closeness_centrality         NA         NA      NA       NA
-    ## 
-    ## Residual standard error: NaN on 0 degrees of freedom
-    ## Multiple R-squared:      1,  Adjusted R-squared:    NaN 
-    ## F-statistic:   NaN on 1 and 0 DF,  p-value: NA
-
-``` r
-# hispanic
-examiner_joined_2wg_hispanic <- examiner_joined_2wg %>% filter(race == "hispanic")
-
-hispanic_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_hispanic)
-
-summary(hispanic_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_hispanic)
-    ## 
-    ## Residuals:
-    ## ALL 1 residuals are 0: no residual degrees of freedom!
-    ## 
-    ## Coefficients: (4 not defined because of singularities)
-    ##                        Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)                1839        NaN     NaN      NaN
-    ## degree_centrality            NA         NA      NA       NA
-    ## betweenness_centrality       NA         NA      NA       NA
-    ## eigenvector_centrality       NA         NA      NA       NA
-    ## closeness_centrality         NA         NA      NA       NA
-    ## 
-    ## Residual standard error: NaN on 0 degrees of freedom
-
-``` r
-# other
-examiner_joined_2wg_other <- examiner_joined_2wg %>% filter(race == "other")
-
-other_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_other)
-
-summary(other_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_other)
-    ## 
-    ## Residuals:
-    ## ALL 1 residuals are 0: no residual degrees of freedom!
-    ## 
-    ## Coefficients: (4 not defined because of singularities)
-    ##                        Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)                 636        NaN     NaN      NaN
-    ## degree_centrality            NA         NA      NA       NA
-    ## betweenness_centrality       NA         NA      NA       NA
-    ## eigenvector_centrality       NA         NA      NA       NA
-    ## closeness_centrality         NA         NA      NA       NA
-    ## 
-    ## Residual standard error: NaN on 0 degrees of freedom
-
-``` r
-# white
-examiner_joined_2wg_white <- examiner_joined_2wg %>% filter(race == "white")
-
-white_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality, data=examiner_joined_2wg_white)
-
-summary(white_reg)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = as.numeric(mean_app_proc_time) ~ degree_centrality + 
-    ##     betweenness_centrality + eigenvector_centrality + closeness_centrality, 
-    ##     data = examiner_joined_2wg_white)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -895.15 -226.53  -23.78  157.62 1288.04 
-    ## 
-    ## Coefficients:
-    ##                          Estimate Std. Error t value Pr(>|t|)
-    ## (Intercept)             1.759e+03  1.079e+03   1.630    0.106
-    ## degree_centrality      -2.206e+00  1.586e+00  -1.391    0.167
-    ## betweenness_centrality  1.156e-01  1.130e+00   0.102    0.919
-    ## eigenvector_centrality -1.661e+08  1.826e+08  -0.910    0.365
-    ## closeness_centrality   -8.994e+08  2.246e+09  -0.400    0.690
-    ## 
-    ## Residual standard error: 374.7 on 109 degrees of freedom
-    ## Multiple R-squared:  0.03054,    Adjusted R-squared:  -0.005031 
-    ## F-statistic: 0.8586 on 4 and 109 DF,  p-value: 0.4914
-
 Adding one more unit in degree centrality subtracts, on average, a
 white’s mean application processing time by 2.4 days, if holding
 everything else equal. Adding one more unit in betweenness centrality
 adds, on average, a white’s mean application processing time by 0.03
 days, if holding everything else equal.
-
-``` r
-aggregate(data.frame(count = examiner_joined_2wg$race), list(value = examiner_joined_2wg$race), length)
-```
 
     ##      value count
     ## 1    asian    27
@@ -1810,42 +886,11 @@ To better understand potential reasons and control for other
 characteristics of examiner that might influence the relationship, let’s
 take a look at the distribution of race for the 2 work groups combined.
 
-``` r
-library(ggplot2)
-library(scales) 
-library(gridExtra)
-```
-
-``` r
-plot1 <- ggplot(examiner_joined_2wg, aes(race)) + 
-          geom_bar(aes(y = (..count..)/sum(..count..))) + 
-          scale_y_continuous(labels=scales::percent) +
-          ylab("Relative Frequencies") +
-          ggtitle("Race distribution for USPTO")
-
-plot2 <- ggplot(examiner_joined_2wg, aes(race, mean_app_proc_time)) + 
-          geom_bar(posititon="dodge", stat="summary", fun="mean") + 
-          ylab("Mean App Proc Time (Days)") +
-          ggtitle("App Proc Time for USPTO")
-```
-
-    ## Warning: Ignoring unknown parameters: posititon
-
-``` r
-grid.arrange(plot1,plot2,ncol=2, widths=c(1,1))
-```
-
     ## Don't know how to automatically pick scale for object of type difftime. Defaulting to continuous.
 
-![](final_report_files/figure-gfm/unnamed-chunk-40-1.png)<!-- -->
+![](final_report_files/figure-gfm/unnamed-chunk-44-1.png)<!-- -->
 
 Let’s consider race at the both workgroups level now.
-
-``` r
-race_reg = lm(as.numeric(mean_app_proc_time) ~ degree_centrality + betweenness_centrality + eigenvector_centrality + closeness_centrality + as.factor(race) + as.factor(race)*degree_centrality + as.factor(race)*betweenness_centrality, data=examiner_joined_2wg)
-
-summary(race_reg)
-```
 
     ## 
     ## Call:
