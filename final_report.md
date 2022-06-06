@@ -32,15 +32,9 @@ the patent application times and outcomes.
 # 2. Methodology
 
 1.  Data Pre-processing
-
-<!-- -->
-
-1.  Data Engineering
-2.  Data Exploration
-3.  Data Cleaning
-
-<!-- -->
-
+a.  Data Engineering
+b.  Data Exploration
+c.  Data Cleaning
 2.  Examining Gender Effect
 3.  Examining Race Effect
 4.  Examining Tenure Effect
@@ -51,23 +45,6 @@ Load the applications data from ‘app\_data\_sample.parquet’ and edges
 data from ‘edges\_sample.csv’
 
 ### Get gender for examiners
-
-We’ll get gender based on the first name of the examiner, which is
-recorded in the field `examiner_name_first`. We’ll use library `gender`
-for that, relying on a modified version of their own
-[example](https://cran.r-project.org/web/packages/gender/vignettes/predicting-gender.html).
-
-Note that there are over 2 million records in the applications table –
-that’s because there are many records for each examiner, as many as the
-number of applications that examiner worked on during this time frame.
-Our first step therefore is to get all *unique* names in a separate list
-`examiner_names`. We will then guess gender for each one and will join
-this table back to the original dataset. So, let’s get names without
-repetition:
-
-Now let’s use function `gender()` as shown in the example for the
-package to attach a gender and probability to each name and put the
-results into the table `examiner_names_gender`
 
     ## # A tibble: 1,822 × 3
     ##    examiner_name_first gender proportion_female
@@ -84,30 +61,7 @@ results into the table `examiner_names_gender`
     ## 10 ABRAHAM             male              0.0031
     ## # … with 1,812 more rows
 
-Finally, let’s join that table back to our original applications data
-and discard the temporary tables we have just created to reduce clutter
-in our environment.
-
 ### Guess the examiner’s race
-
-We’ll now use package `wru` to estimate likely race of an examiner. Just
-like with gender, we’ll get a list of unique names first, only now we
-are using surnames.
-
-We’ll follow the instructions for the package outlined here
-<https://github.com/kosukeimai/wru>.
-
-As you can see, we get probabilities across five broad US Census
-categories: white, black, Hispanic, Asian and other. (Some of you may
-correctly point out that Hispanic is not a race category in the US
-Census, but these are the limitations of this package.)
-
-Our final step here is to pick the race category that has the highest
-probability for each last name and then join the table back to the main
-applications table. See this example for comparing values across
-columns: <https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-rowwise/>.
-And this one for `case_when()` function:
-<https://dplyr.tidyverse.org/reference/case_when.html>.
 
     ## # A tibble: 3,806 × 8
     ##    surname    pred.whi pred.bla pred.his pred.asi pred.oth max_race_p race 
@@ -124,31 +78,11 @@ And this one for `case_when()` function:
     ## 10 KIM          0.0252  0.00390  0.00650  0.945     0.0198      0.945 asian
     ## # … with 3,796 more rows
 
-Let’s join the data back to the applications table.
-
 ### Examiner’s tenure
 
-To figure out the timespan for which we observe each examiner in the
-applications data, let’s find the first and the last observed date for
-each examiner. We’ll first get examiner IDs and application dates in a
-separate table, for ease of manipulation. We’ll keep examiner ID (the
-field `examiner_id`), and earliest and latest dates for each application
-(`filing_date` and `appl_status_date` respectively). We’ll use functions
-in package `lubridate` to work with date and time values.
-
-The dates look inconsistent in terms of formatting. Let’s make them
-consistent. We’ll create new variables `start_date` and `end_date`.
-
-Let’s now identify the earliest and the latest date for each examiner
-and calculate the difference in days, which is their tenure in the
-organization.
-
-Joining back to the applications data.
+We calculated examiner tenure. Joined this data to the applications data.
 
 ### Create application processing time variable
-
-Compute the final decision date as either abandon date or patent issue
-date.
 
     ## # A tibble: 6 × 11
     ##   application_number filing_date abandon_date patent_issue_date decision_date
